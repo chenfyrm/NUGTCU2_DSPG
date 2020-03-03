@@ -15,6 +15,7 @@
 #ifndef DSP2833x_NUG_INFRA_H
 #define DSP2833x_NUG_INFRA_H
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -98,6 +99,28 @@ extern void TaskECan_ini(void);
 extern void TaskECan_run(void);
 extern void TaskSci_ini(void);
 extern void TaskSci_run(void);
+
+//Ratation speed related paramete
+struct Ro_speed
+{
+	unsigned int dir;	//旋转方向, dir=1为正转，dir=0为反转
+	float omega_m;		//机械转速,rad/s
+	unsigned long int pos_cur;	//当前单位时间事件发生时的正交脉冲计数值
+	unsigned long int pos_pre;	//前一次单位时间事件发生时的正交脉冲计数值
+	long int pos_delta;	//两次单位时间事件之间的正交脉冲数
+	float up_prd;		//单位位移事件经过的时间,s
+	float omega_m_high;	//高速测量法得到的结果
+	float omega_m_low;	//低速测量法得到的结果
+	float omega_m_medium;
+};
+
+struct ABC
+{
+	float a;
+	float b;
+	float c;
+	float n;
+};
 
 #ifdef __cplusplus
 }

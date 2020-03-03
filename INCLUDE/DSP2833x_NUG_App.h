@@ -12,47 +12,42 @@
 // $Release Date: January 01, 2018 $
 //###########################################################################
 
+
 #ifndef DSP2833x_NUG_APP_H
 #define DSP2833x_NUG_APP_H
 //----------------------------------------------------
+extern float32 AI[30];
+extern Uint16 PWM_OS[11];
 
-extern int16 FPGA_RD[10];
-extern int16 FPGA_WR[10];
-extern int16 DPRAM_RD[40];
-extern int16 DPRAM_WR[40];
-extern int16 EEPROM_RD[40];
-extern int16 EEPROM_WR[40];
-extern Uint16 PWM_OS[10],ERR_OS[5];
+extern Uint16 DI_OS[1];
+extern Uint16 DO_OS[1];
+extern Uint16 ERR_EXTR[3];
 
-extern Uint16 HMI_RBUF[10],HMI_TBUF[10];
+extern Uint16 CFG_IN[4];
+extern Uint16 STA_IN[8];
+extern Uint16 ERR_DSP[3];
+extern Uint16 CFG_OUT[3];
+extern Uint16 STA_OUT[4];
+extern Uint16 CUST_MCU_IM[30];
+extern Uint16 CUST_MCU_1ms[10];
+extern Uint16 CUST_MCU_2ms[20];
+//extern Uint16 CUST_MCU_16ms[20];
+//extern Uint16 CUST_MCU_64ms[20];
+//extern Uint16 CUST_DSP_IM[30];
+extern Uint16 CUST_DSP_1ms[10];
+extern Uint16 CUST_DSP_2ms[20];
+//extern Uint16 CUST_DSP_16ms[20];
+//extern Uint16 CUST_DSP_64ms[20];
 
-extern float32	AI_OS[40],CMD_OS[40],CTRL_OS[20];
-
-//Ratation speed related paramete
-struct Ro_speed
-{
-	unsigned int dir;	//旋转方向, dir=1为正转，dir=0为反转
-	float omega_m;		//机械转速,rad/s
-	unsigned long int pos_cur;	//当前单位时间事件发生时的正交脉冲计数值
-	unsigned long int pos_pre;	//前一次单位时间事件发生时的正交脉冲计数值
-	long int pos_delta;	//两次单位时间事件之间的正交脉冲数
-	float up_prd;		//单位位移事件经过的时间,s
-	float omega_m_high;	//高速测量法得到的结果
-	float omega_m_low;	//低速测量法得到的结果
-	float omega_m_medium;
-};
-struct ABC
-{
-	float a;
-	float b;
-	float c;
-	float n;
-};
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+extern void INIT_EV(void);
+extern void Cycle_OS(void);
+extern void INT_RTOS(void);
+extern void INT_PWM(void);
 
 #ifdef __cplusplus
 }
@@ -61,6 +56,5 @@ extern "C" {
 #endif   // - end of DSP2833x_NUG_APP_H
 
 //===========================================================================
-// End of file.
-//===========================================================================
+// End of file.//===========================================================================
 

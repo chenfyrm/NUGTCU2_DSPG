@@ -62,10 +62,24 @@ Uint16 otime,OVCUN,HMI_RBUF[10],HMI_TBUF[10],Pin,Pout,rtemp,scitx_sta;
 float32	TMP_Rt,Zero_Ia,Zero_Ib;
 //--------------------------------------------------------------------------------
 int16 AD_CH[30],DA_CH[5],FPGA_RD[10],FPGA_WR[10],DPRAM_RD[40],DPRAM_WR[40],EEPROM_RD[40],EEPROM_WR[40];
+Uint16 ERR_OS[5];
 
-Uint16 PWM_OS[10],ERR_OS[5];
+float32 AI[30];
+Uint16 PWM_OS[11];
 
-float32	AI[40],CMD_OS[40],CTRL_OS[20],TMP_Rt,Zero_Ia,Zero_Ib;
+Uint16 DI_OS[1];
+Uint16 DO_OS[1];
+Uint16 ERR_EXTR[3];
+
+Uint16 CFG_IN[4];
+Uint16 STA_IN[8];
+Uint16 ERR_DSP[3];
+Uint16 CFG_OUT[3];
+Uint16 STA_OUT[4];
+
+float32	CMD_OS[40],CTRL_OS[20],TMP_Rt,Zero_Ia,Zero_Ib;
+
+
 //--------------------------------------------------------------------------------
 volatile struct Ro_speed Ro_SP01,Ro_SP02,Ro_SP03,Ro_SP04;
 //tasks_ini_t tasks_ini;
@@ -101,6 +115,7 @@ interrupt void EPWM1_isr(void);
 //interrupt void EPWM4_isr(void);
 interrupt void RTOStimer_isr(void);
 interrupt void ScibRx_isr(void);
+
 //=================================================================================
  void main(void)
  {
@@ -143,8 +158,9 @@ interrupt void ScibRx_isr(void);
 //	InitFPGA();
 	InitDRV();
 //	DPRAM_WR[0] = 0x0401;
-	extern void INIT_EV(void);
-		INIT_EV();
+
+	INIT_EV();
+
 	while(1)
 	{ 	  					
         MLOOP_Infra();
@@ -185,27 +201,12 @@ interrupt void ScibRx_isr(void);
             CTRL_OS[1] = 0x0013;
 	}
 }
-void INT_RTOS(void)
-{
- 	//250us functions
-}
-void INT_PWM(void)
-{
- 	//250us functions
-}
-void Cycle_OS(void)
-{
- 	//250us functions
-}
-void INIT_EV(void)
-{
- 	//250us functions
-}
+
 void MLOOP_Infra(void)
 {
-	extern void Cycle_OS(void);
-		Cycle_OS();
+	Cycle_OS();
 }
+
 //==============================================================================
 interrupt void RTOStimer_isr(void)   
 {  
@@ -218,7 +219,6 @@ interrupt void RTOStimer_isr(void)
 //		DSP_WDL();
 //------------------------------------------------------------------
 //	Time_Process();//Set the time,Eg. us,sec,min,hour,etc,0.7us.
-	extern void INT_RTOS(void);
 	INT_RTOS();
 //------------------------------------------------------------------
 //	ADC_Process();//Inner ADC and 7606 Sampling and Basically process,2.85us
@@ -239,21 +239,21 @@ interrupt void RTOStimer_isr(void)
 //	DAC_Process();//Write data to DA,4.8us
 			
 //---------------------------------------------------------------------
-
 	CpuTimer0Regs.TCR.bit.TIF = 1;//clear flag
 	CpuTimer0Regs.TCR.bit.TRB = 1;//reload counter of timer0
     PieCtrlRegs.PIEACK.all|=PIEACK_GROUP1;
+
 //	EPwm4Regs.ETCLR.bit.INT=1;
-//    PieCtrlRegs.PIEACK.all|=PIEACK_GROUP3;
+//  PieCtrlRegs.PIEACK.all|=PIEACK_GROUP3;
 
 }
+
 interrupt void EPWM1_isr(void)
 {
 	//------------------------------------------------------------------
 	ADC_Process();//Inner ADC and 7606 Sampling and Basically process,2.85us
 	//------------------------------------------------------------------
-	extern void INT_PWM(void);
-		INT_PWM();
+	INT_PWM();
 	if((Cnt_sec % 2) == 1)
 		DSP_WDH();//Set the GPIO to indicate interrupt is OK
 
@@ -267,6 +267,7 @@ interrupt void EPWM1_isr(void)
 	EPwm1Regs.ETCLR.bit.INT=1;
 	PieCtrlRegs.PIEACK.all|=PIEACK_GROUP3;
 }
+
 //==============================================================================
 void Time_Process(void)
 {
@@ -295,6 +296,7 @@ void Time_Process(void)
 		Cnt_sec=0;
 	}
 }
+
 //==============================================================================
 void ADC_Process(void)
 {
@@ -356,6 +358,7 @@ void ADC_Process(void)
 
 	AI[7] = AD_CH[6] * 0.1;//Udc+ref
 	AI[8] = AD_CH[7] * 0.1;//EF+ref
+
 //-----------IOE-------------
 	AI[9] = AD_CH[8] * 0.1;//AI23
 	AI[10] = AD_CH[9] * 0.1;//AI24
@@ -368,6 +371,7 @@ void ADC_Process(void)
 
 	AI[17] = 110;//Vbattery
 }
+
 //==============================================================================
 void ADC_LS_IOB_Process(void)
 {
@@ -383,12 +387,6 @@ void ADC_LS_IOB_Process(void)
    SpiaRegs.SPITXBUF=0x8020;//spi读取命令,0通道
    /*
    0b1000000000100000
-   第5位,0:外部参考,1:内部参考，当前为外部参考
-   第6位，0为二进制补码，1：直接输出二进制，当前为直接输出二进制
-   第7第8位，电源模式选择，当前为normal模式
-   第9第10位：选择输入管脚模式，例8个单端输入、四个全差分输入、四个伪差分输入，当前为8个单端输入
-   第11到第13位：选择转换通道 000：通道0，001：通道1，010：通道2...当前选择通道0
-   第14到第16位：读取命令
    */
     // Wait until data is received
 //    while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
@@ -505,6 +503,7 @@ void ADC_LS_IOB_Process(void)
 	AI[23] = 25;
 
 }
+
 //==============================================================================
 void ADC_LS_IOE_Process(void)
 {
@@ -544,6 +543,7 @@ void ADC_LS_IOE_Process(void)
     *(XintfZone7 + 1) = FPGA_WR[2];
     DELAY_US(1L);
 }
+
 //==============================================================================
 void FLASH_IOE_Process(void)
 {
@@ -561,6 +561,7 @@ void FLASH_IOE_Process(void)
     *(XintfZone7 + 1) = FPGA_WR[2];
     DELAY_US(1L);
 }
+
 //==============================================================================
 void FLASH_OPT_Process(void)
 {
@@ -578,6 +579,7 @@ void FLASH_OPT_Process(void)
     *(XintfZone7 + 1) = FPGA_WR[2];
     DELAY_US(1L);
 }
+
 //==============================================================================
 void DAC_Process(void) 
 {
@@ -637,6 +639,7 @@ void DAC_Process(void)
 	FPGA_WR[2] |= 0x24;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 }
+
 //==============================================================================
 void SP_PRO(void)
 {
@@ -671,7 +674,7 @@ void SP_PRO(void)
 			Ro_SP01.pos_cur=EQep1Regs.QPOSLAT;                    // Latched POSCNT value
 			if (Ro_SP01.dir == 0x11)	
 			{
-				if (Ro_SP01.pos_cur > Ro_SP01.pos_pre)//锟斤拷值锟较达拷说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
+				if (Ro_SP01.pos_cur > Ro_SP01.pos_pre)//锟斤拷�锟较达拷说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
 				{
 					Ro_SP01.pos_delta = Ro_SP01.pos_pre + 0xFFFFFFFF - Ro_SP01.pos_cur;
 				}
@@ -682,7 +685,7 @@ void SP_PRO(void)
 			}
 			else if (Ro_SP01.dir == 0x22)
 			{
-				if (Ro_SP01.pos_cur < Ro_SP01.pos_pre)//锟斤拷值锟斤拷小说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
+				if (Ro_SP01.pos_cur < Ro_SP01.pos_pre)//锟斤拷�锟斤拷小说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
 				{
 					Ro_SP01.pos_delta = Ro_SP01.pos_cur + 0xFFFFFFFF - Ro_SP01.pos_pre;
 				}
@@ -710,7 +713,7 @@ void SP_PRO(void)
 	{
 		if(EQep1Regs.QEPSTS.bit.COEF == 0)// No Capture overflow
 		{
-			//锟斤拷锟芥单位位锟斤拷时锟斤拷锟斤拷锟?
+			//锟斤拷锟芥单位位锟斤拷时锟斤拷锟斤拷�
 			Ro_SP01.up_prd = ((float)EQep1Regs.QCPRDLAT) * 0.85333333;//QCK=128/150=0.853333us
 			Ro_SP01.omega_m_low = 750000 / Ro_SP01.up_prd;//Ro_SP01.omega_m_low * 0.99 +  * 0.01//2500,2^UPPS * 10^6 / 4 /Ro_SP01.up_prd /20,4 div frequency;
 		}
@@ -760,7 +763,7 @@ void SP_PRO(void)
 			Ro_SP02.pos_cur=EQep2Regs.QPOSLAT;                    // Latched POSCNT value
 			if (Ro_SP02.dir == 0x11)
 			{
-				if (Ro_SP02.pos_cur > Ro_SP02.pos_pre)//锟斤拷值锟较达拷说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
+				if (Ro_SP02.pos_cur > Ro_SP02.pos_pre)//锟斤拷�锟较达拷说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
 				{
 					Ro_SP02.pos_delta = Ro_SP02.pos_pre + 0xFFFFFFFF - Ro_SP02.pos_cur;
 				}
@@ -771,7 +774,7 @@ void SP_PRO(void)
 			}
 			else if (Ro_SP02.dir == 0x22)
 			{
-				if (Ro_SP02.pos_cur < Ro_SP02.pos_pre)//锟斤拷值锟斤拷小说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
+				if (Ro_SP02.pos_cur < Ro_SP02.pos_pre)//锟斤拷�锟斤拷小说锟斤拷锟斤拷锟剿伙拷械锟斤拷锟?
 				{
 					Ro_SP02.pos_delta = Ro_SP02.pos_cur + 0xFFFFFFFF - Ro_SP02.pos_pre;
 				}
@@ -799,7 +802,7 @@ void SP_PRO(void)
 	{
 		if(EQep2Regs.QEPSTS.bit.COEF == 0)// No Capture overflow
 		{
-			//锟斤拷锟芥单位位锟斤拷时锟斤拷锟斤拷锟?
+			//锟斤拷锟芥单位位锟斤拷时锟斤拷锟斤拷�
 			Ro_SP02.up_prd = ((float)EQep2Regs.QCPRDLAT) * 0.85333333;//QCK=128/150=0.853333us
 			Ro_SP02.omega_m_low = 750000 / Ro_SP02.up_prd;//Ro_SP01.omega_m_low * 0.99 +  * 0.01//2500,2^UPPS * 10^6 / 4 /Ro_SP01.up_prd /20,4 div frequency;
 		}
@@ -825,7 +828,7 @@ void SP_PRO(void)
 	AI[28] = (Ro_SP01.dir & 0x000F) + ((Ro_SP02.dir & 0x000F)<<4) + ((Ro_SP01.dir & 0x000F)<<8) + ((Ro_SP02.dir & 0x000F)<<12);
 
 }
-//==============================================================================
+
 //==============================================================================
 void DPRAM_PRO_RD(void)
 {
@@ -897,6 +900,7 @@ void DPRAM_PRO_RD(void)
 	Cnt_MCU = (Uint16)CMD_OS[2];
 
 }
+
 //==============================================================================
 void DPRAM_PRO_WR(void)
 {
@@ -961,16 +965,19 @@ void DPRAM_PRO_WR(void)
 	*(XintfZone6 + 0x3FB) = (((int16)CTRL_OS[1] >>8) & 0xFF);//MCU Status
 	*(XintfZone6 + 0x3FC) = ((2 * 10) & 0xFF);//MCU Status,CTRL_OS[0]
 	*(XintfZone6 + 0x3FD) = (((int16)CTRL_OS[0] * 10) & 0xFF);//MCU Status
-	*(XintfZone6 + 0x3FE) = (Cnt_DSP & 0xFF);//锟斤拷锟叫达拷锟斤拷锟斤拷锟斤拷锟较拷锟斤拷锟绞癸拷锟絀NTR锟斤拷锟矫碉拷
+	*(XintfZone6 + 0x3FE) = (Cnt_DSP & 0xFF);//锟斤拷锟叫达拷锟斤拷锟斤拷锟斤拷锟较拷锟斤拷锟绞癸拷锟�TR锟斤拷锟矫碉�
 }
+
 //==============================================================================
 void FPGA_PRO_WR(void)
 {
+
 
 //	*(XintfZone0 + 9) = IOB_GPDO.all;
 //	*(XintfZone0 + 11) = FPGA_WR[2];
 //	*(XintfZone0 + 10) = 0x2222;
 }
+
 //==============================================================================
 void FPGA_PRO_RD(void)
 {
@@ -989,6 +996,7 @@ void FPGA_PRO_RD(void)
 	}
 
 }
+
 //==============================================================================
 void SPWM(void)
 {
@@ -1094,6 +1102,7 @@ void SPWM(void)
 	EPwm4Regs.CMPA.half.CMPA = (Uint16)PWM4A_CMP;//TB_PWM_PERIOD * 0.8;//
 //	EPwm4Regs.CMPB = TB_PWM_PERIOD * 0.2;//(Uint16)Ua_CMPB;
 }
+
 //==============================================================================================
 void InitAD7606(void)
 {	
@@ -1102,8 +1111,8 @@ void InitAD7606(void)
 //	GpioDataRegs.GPBCLEAR.bit.GPIO50=1;//OS0=0
 //	GpioDataRegs.GPBCLEAR.bit.GPIO51=1;//OS0=0
 //	GpioDataRegs.GPBCLEAR.bit.GPIO52=1;//OS0=0
-//Range is 锟斤拷10V
-//	GpioDataRegs.GPBSET.bit.GPIO59=1;//1->锟斤拷10V//Nonsense now
+//Range is 锟斤�0V
+//	GpioDataRegs.GPBSET.bit.GPIO59=1;//1->锟斤�0V//Nonsense now
 //Disable Standby
 //	GpioDataRegs.GPBSET.bit.GPIO53=1;//1->No Standby
 //Reset AD7606,Typically 50ns,here 100ns
@@ -1120,14 +1129,14 @@ void InitAD7606(void)
 	FPGA_WR[2] &= 0xFE;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 
-	SpiaRegs.SPITXBUF=0xAAA0;//spi初始化配置参数1
+	SpiaRegs.SPITXBUF=0xAAA0;//spi初始化配置参�
 	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	/*
-	0b1010101010100000 第1到第5位无效位，第6到第13位为通道0-3的范围选择,第14到第16位为写范围寄存器1指令：101
-	例第12、第13位为通道0的范围选择配置，当前为01 +-5V
-	00：+-10V
-	01：+-5V
-	10：+-2.5V
+	0b1010101010100000 �到第5位无效位，第6到第13位为通道0-3的范围���4到第16位为写范围寄存器1指令�01
+	例第12、第13位为通道0的范围�择配置，当前�1 +-5V
+	00�-10V
+	01�-5V
+	10�-2.5V
 	11: 0-10V
 	*/
 	FPGA_WR[2] |= 0x01;
@@ -1138,20 +1147,21 @@ void InitAD7606(void)
 	FPGA_WR[2] &= 0xFE;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 
-	SpiaRegs.SPITXBUF=0xCAA0;//spi初始化配置参数2
+	SpiaRegs.SPITXBUF=0xCAA0;//spi初始化配置参�
 	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	/*
-	0b1100101010100000 第1到第5位无效位，第6到第13位为通道4-7的范围选择，第14到第16位为写范围寄存器2指令：110
-	例第12、第13位为通道4的范围选择配置，当前为01 +-5V
-	00：+-10V
-	01：+-5V
-	10：+-2.5V
+	0b1100101010100000 �到第5位无效位，第6到第13位为通道4-7的范围�择，�4到第16位为写范围寄存器2指令�10
+	例第12、第13位为通道4的范围�择配置，当前�1 +-5V
+	00�-10V
+	01�-5V
+	10�-2.5V
 	11: 0-10V
 	*/
 	FPGA_WR[2] |= 0x01;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 	DELAY_US(1L);
 } 
+
 //==============================================================================================
 void InitFPGA(void)
 {
@@ -1163,6 +1173,7 @@ void InitFPGA(void)
 	DELAY_US(5L);
 }
 
+//==============================================================================================
 void InitDRV(void)
 {
 //	*(XintfZone0 + 9) = 0x4100;
@@ -1182,12 +1193,15 @@ void InitDRV(void)
 
 //	MCU_Err_DIS();
 }
+
+//==============================================================================================
 void InitDGMVB(void)
 {
 //	DIS_MVBRST();
 	DELAY_US(5L);
 //	EN_MVBRST();
 }
+
 //==============================================================================================
 void InitVariables(void)
 {
