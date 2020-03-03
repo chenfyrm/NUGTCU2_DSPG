@@ -119,22 +119,13 @@ interrupt void ScibRx_isr(void);
 //=================================================================================
  void main(void)
  {
+	 //-----------------------------------
    	InitSysCtrl();//Set in SysCtrl.c
+
+   	//----------------------------------------------------
    	InitGpio();//Set in Gpio.c,define all of the GPIOs
-	
- 	InitEPwm();//Set in EPwm.c
-//	InitSci();//Set in Sci.c
-//	InitECan();//Set in ECan.c
-	InitEQep();//Set in EQep.c
-//	InitI2C();//Set in I2C.c
-	InitSpi();
-//	InitAdc();//Set in Adc.c,Initial Internal ADC
-	InitAD7606();//Set in main.c
-	InitVariables();//Set in main.c
-	
-	DIS_INT();
-	DIS_PWM();
-	
+
+   	//------------------------------------------------
 	InitPieCtrl();//Set in PieCtrl.c
 	InitPieVectTable();//Set in PieVect.c
 	EALLOW;
@@ -144,6 +135,22 @@ interrupt void ScibRx_isr(void);
 //	PieVectTable.EPWM4_INT=&EPWM4_isr;
 //	PieVectTable.SCIRXINTB=&ScibRx_isr;
 	EDIS;
+	
+	//------------------------------------------
+ 	InitEPwm();//Set in EPwm.c
+//	InitSci();//Set in Sci.c
+//	InitECan();//Set in ECan.c
+	InitEQep();//Set in EQep.c
+//	InitI2C();//Set in I2C.c
+	InitSpi();
+//	InitAdc();//Set in Adc.c,Initial Internal ADC
+	InitAD7606();//Set in main.c
+
+	//----------------------------------
+	InitVariables();//Set in main.c
+	
+	DIS_INT();
+	DIS_PWM();
 
 	InitCpuTimers();
 //	ConfigCpuTimer(&CpuTimer0, 150, 300);  // 250us 150MHz CPU Freq, 1 second Period (in uSeconds)
