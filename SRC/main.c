@@ -315,26 +315,27 @@ void ADC_Process(void)
 	AD_CH[0] -= (int16)Zero_Ia;
 	AD_CH[1] -= (int16)Zero_Ib;
 
-	AI[11] = -((float32)AD_CH[0] * 0.0914412);//Ia//0.0304804
-	AI[12] = -((float32)AD_CH[1] * 0.0914412);//Ib
-	AI[2] = -(AI[0] + AI[1]);//Ic
-	AI[3] = AD_CH[2] * 0.1;
-	AI[4] = AD_CH[3] * 0.1;
+	AI[11] = -((float32)AD_CH[0] * 0.0914412 * CUST_MCU_PAR[5] * 0.00016667);//Ia//0.0304804
+	AI[12] = -((float32)AD_CH[1] * 0.0914412 * CUST_MCU_PAR[6] * 0.00016667);//Ib
+//	AI[2] = -(AI[0] + AI[1]);//Ic
+	AI[13] = AD_CH[2] * 0.01;
+	AI[14] = AD_CH[3] * 0.01;
 
-	AI[5] = AI[5] * 0.9 + ((float32)AD_CH[4] * 0.0469515 * 0.1);//Idc
-	AI[6] = AI[6] * 0.9 + ((float32)AD_CH[5] * 0.0914412 * 0.1);//Udc
+	AI[15] = AI[15] * 0.9 + ((float32)AD_CH[4] * 0.0469515 * 0.1 * CUST_MCU_PAR[7] * 0.00016667);//Idc
+	AI[16] = AI[16] * 0.9 + ((float32)AD_CH[5] * 0.0914412 * 0.1 * CUST_MCU_PAR[8] * 0.00025);//Udc
 
-	AI[7] = AD_CH[6] * 0.1;//Udc+ref
-	AI[8] = AD_CH[7] * 0.1;//EF+ref
+	AI[17] = AD_CH[6] * 0.01;//Udc+ref
+	AI[18] = AD_CH[7] * 0.01;//EF+ref
 //-----------IOE-------------
-	AI[9] = AD_CH[8] * 0.1;//AI23
-	AI[10] = AD_CH[9] * 0.1;//AI24
-	AI[11] = AD_CH[10] * 0.1;//AI25
-	AI[12] = AD_CH[11] * 0.1;//AI26
-	AI[13] = AD_CH[12] * 0.1;//AI28
-	AI[14] = AD_CH[13] * 0.1;//AI29
-	AI[15] = AD_CH[14] * 0.1;//AI30
-	AI[16] = AD_CH[15] * 0.1;//AI31
+	AI[19] = AD_CH[8] * 0.01;//AI23
+	AI[20] = AD_CH[9] * 0.01;//AI24
+	AI[21] = AD_CH[10] * 0.01;//AI25
+	AI[22] = AD_CH[11] * 0.01;//AI26
+	AI[23] = AD_CH[12] * 0.01;//AI28
+	AI[24] = AD_CH[13] * 0.01;//AI29
+	AI[25] = AD_CH[14] * 0.01;//AI30
+	AI[26] = AD_CH[15] * 0.01;//AI31
+	AI[27] = 110;//AI31
 
 	AI[17] = 110;//Vbattery
 }
@@ -459,20 +460,25 @@ void ADC_LS_IOB_Process(void)
     DELAY_US(1L);
 
 	//Wait for Inner ADC
+    AD_CH[16] = 2753.44;
+    AD_CH[17] = 2753.44;
+    AD_CH[18] = 2753.44;
+    AD_CH[19] = 2753.44;
 
 	TMP_Rt = (float32)AD_CH[16] * 0.039950284;//AD_CH[6] /4096 * 3 /7.333333 *1000 / 2.5;//0.0264651
-	AI[18] = (TMP_Rt - 100) * 2.731579;
+	AI[0] = (TMP_Rt - 100) * 2.731579;
 
 	TMP_Rt = (float32)AD_CH[17] * 0.039950284;//AD_CH[6] /4096 * 3 /7.333333 *1000 / 2.5
-	AI[19] = (TMP_Rt - 100) * 2.731579;//2.631579
+	AI[1] = (TMP_Rt - 100) * 2.731579;//2.631579
 
 	TMP_Rt = (float32)AD_CH[18] * 0.079900568;//AD_CH[6] /4096 * 3 /3.666667 *1000 / 2.5
-	AI[20] = (TMP_Rt - 100) * 2.731579;
+	AI[2] = (TMP_Rt - 100) * 2.731579;
 
 	TMP_Rt = (float32)AD_CH[19] * 0.079900568;//AD_CH[6] /4096 * 3 /3.666667 *1000 / 2.5
-	AI[21] = (TMP_Rt - 100) * 2.731579;
-	AI[22] = 25;
-	AI[23] = 25;
+	AI[3] = (TMP_Rt - 100) * 2.731579;
+	AI[4] = 25;
+	AI[5] = 25;
+	AI[6] = 25;
 
 }
 //==============================================================================
@@ -788,10 +794,10 @@ void SP_PRO(void)
 	else if(Ro_SP02.omega_m >= 5000)
 		Ro_SP02.omega_m = 5000;
 
-	AI[24] = Ro_SP01.omega_m;
-	AI[25] = Ro_SP02.omega_m;
-	AI[26] = Ro_SP01.omega_m;
-	AI[27] = Ro_SP02.omega_m;
+	AI[7] = Ro_SP01.omega_m * CUST_MCU_PAR[1] * 0.0125;
+	AI[8] = Ro_SP02.omega_m * CUST_MCU_PAR[2] * 0.0125;
+	AI[9] = Ro_SP01.omega_m * CUST_MCU_PAR[3] * 0.0125;
+	AI[10] = Ro_SP02.omega_m * CUST_MCU_PAR[4] * 0.0125;
 	AI[28] = (Ro_SP01.dir & 0x000F) + ((Ro_SP02.dir & 0x000F)<<4) + ((Ro_SP01.dir & 0x000F)<<8) + ((Ro_SP02.dir & 0x000F)<<12);
 
 }
