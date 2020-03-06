@@ -170,6 +170,8 @@ typedef struct _ERR_DSP_Obj_ {
 	union ERR_DSP1_REG ERR_DSP1;
 	Uint16 rsvd1;
 	Uint16 rsvd2;
+	Uint16 rsvd3;
+	Uint16 rsvd4;
 } ERR_DSP_Obj, *ERR_DSP_Handle;
 
 struct ERR_EXTR1_BITS {
@@ -459,15 +461,13 @@ void INIT_EV(void) {
 	os.DI_OSHandle = (DI_OS_Handle) &DI_OS[0];
 	os.CFG_INHandle = (CFG_IN_Handle) &CFG_IN[0];
 	os.STA_INHandle = (STA_IN_Handle) &STA_IN[0];
-	os.ERR_DSPHandle = (ERR_DSP_Handle) &ERR_DSP[0];
+	os.ERR_DSPHandle = (ERR_DSP_Handle) &ERR_DSP_OS[0];
 
 	os.ERR_EXTRHandle = (ERR_EXTR_Handle) &ERR_EXTR[0];
 	os.PWM_OSHandle = (PWM_OS_Handle) &PWM_OS[0];
 	os.DO_OSHandle = (DO_OS_Handle) &DO_OS[0];
 	os.CFG_OUTHandle = (CFG_OUT_Handle) &CFG_OUT[0];
 	os.STA_OUTHandle = (STA_OUT_Handle) &STA_OUT[0];
-
-
 
 }
 
