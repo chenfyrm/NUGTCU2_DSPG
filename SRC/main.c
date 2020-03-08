@@ -67,12 +67,12 @@ int16 AD_CH[30], DA_CH[5], FPGA_RD[10], FPGA_WR[10];
 //----------------------------------------------------------------------------
 float32 AI[30];
 Uint16 DI_OS[1], DO_OS[1], CFG_IN[4], CFG_OUT[3], STA_IN[8], STA_OUT[4],
-		PWM_OS[11], ERR_DSP_OS[5], ERR_EXTR[3];
+		PWM_OS[11], ERR_DSP[3], ERR_EXTR[3];
 Uint16 CUST_MCU_PAR[60], CUST_MCU_1ms[20], CUST_MCU_2ms[40], CUST_MCU_16ms[40],
 		CUST_MCU_64ms[40];
 Uint16 CUST_DSP_1ms[20], CUST_DSP_2ms[40], CUST_DSP_16ms[40], CUST_DSP_64ms[40];
 //-------------------------------------------------------------------------------=
-Uint16 CUST_MCU_PAR_HAL[20],AO[10];
+Uint16 CUST_MCU_PAR_HAL[20], AO_HAL[10], SensorSel, DspFltClr;
 //--------------------------------------------------------------------------------
 volatile struct Ro_speed Ro_SP01, Ro_SP02, Ro_SP03, Ro_SP04;
 //tasks_ini_t tasks_ini;
@@ -142,7 +142,7 @@ void main(void) {
 
 	InitCpuTimers();
 //	ConfigCpuTimer(&CpuTimer0, 150, 300);  // 250us 150MHz CPU Freq, 1 second Period (in uSeconds)
-	ConfigCpuTimer(&CpuTimer0, 150, 200);
+	ConfigCpuTimer(&CpuTimer0, 150, 250);
 	CpuTimer0Regs.TCR.all = 0x4000; // Use write-only instruction to set TSS bit = 0
 	InitXInterrupt(); //Set interrupt source
 
@@ -196,7 +196,6 @@ interrupt void RTOStimer_isr(void) {
 //------------------------------------------------------------------
 	FPGA_PRO_WR();	//Write the data to FPGA,XXus
 	FPGA_PRO_RD();	//Read the data from FPGA,XXus
-
 //------------------------------------------------------------------
 //	SP01_EN();
 //	if((Cnt_ms % 20) == 1)
@@ -206,9 +205,7 @@ interrupt void RTOStimer_isr(void) {
 	SP_PRO();	//Theta Caculation,1.45us
 //------------------------------------------------------------------
 //	DAC_Process();//Write data to DA,4.8us
-
 //---------------------------------------------------------------------
-
 	CpuTimer0Regs.TCR.bit.TIF = 1;	//clear flag
 	CpuTimer0Regs.TCR.bit.TRB = 1;	//reload counter of timer0
 	PieCtrlRegs.PIEACK.all |= PIEACK_GROUP1;
@@ -306,17 +303,18 @@ void ADC_Process(void) {
 	AD_CH[0] -= (int16) Zero_Ia;
 	AD_CH[1] -= (int16) Zero_Ib;
 
-	AI[11] = -((float32) AD_CH[0] * 0.0914412 * CUST_MCU_PAR_HAL[5] * 0.00016667);//Ia//0.0304804
-	AI[12] = -((float32) AD_CH[1] * 0.0914412 * CUST_MCU_PAR_HAL[6] * 0.00016667);//Ib
+	AI[11] =
+			-((float32) AD_CH[0] * 0.0914412 * CUST_MCU_PAR_HAL[5] * 0.00016667);//Ia//0.0304804
+	AI[12] =
+			-((float32) AD_CH[1] * 0.0914412 * CUST_MCU_PAR_HAL[6] * 0.00016667);//Ib
 	AI[13] = AD_CH[2] * 0.01;
 	AI[14] = AD_CH[3] * 0.01;
 	AI[15] = AI[15] * 0.9
 			+ ((float32) AD_CH[4] * 0.0469515 * 0.1 * CUST_MCU_PAR_HAL[7]
 					* 0.00016667);	//Idc
-	AI[16] =
-			AI[16] * 0.9
-					+ ((float32) AD_CH[5] * 0.0914412 * 0.1 * CUST_MCU_PAR_HAL[8]
-							* 0.00025);	//Udc
+	AI[16] = AI[16] * 0.9
+			+ ((float32) AD_CH[5] * 0.0914412 * 0.1 * CUST_MCU_PAR_HAL[8]
+					* 0.00025);	//Udc
 	AI[17] = AD_CH[6] * 0.01;	//Udc+ref
 	AI[18] = AD_CH[7] * 0.01;	//EF+ref
 //-----------IOE-------------
@@ -473,6 +471,7 @@ void ADC_LS_IOB_Process(void) {
 
 	TMP_Rt = (float32) AD_CH[19] * 0.079900568;	//AD_CH[6] /4096 * 3 /3.666667 *1000 / 2.5
 	AI[3] = (TMP_Rt - 100) * 2.731579;
+
 	AI[4] = 25;
 	AI[5] = 25;
 	AI[6] = 25;
@@ -679,7 +678,7 @@ void SP_PRO(void) {
 			Ro_SP01.up_prd = 0xFFFF * 0.8533;
 			Ro_SP01.omega_m_low = 0;
 		}
-		EQep1Regs.QEPSTS.all = 0x88;// Clear Unit position event flag												     	// Clear overflow error flag
+		EQep1Regs.QEPSTS.all = 0x88; // Clear Unit position event flag												     	// Clear overflow error flag
 	}
 	Ro_SP01.omega_m = Ro_SP01.omega_m_high;
 	if ((Ro_SP01.omega_m >= 15) && (Ro_SP01.omega_m <= 3750))
@@ -754,7 +753,7 @@ void SP_PRO(void) {
 			Ro_SP02.up_prd = 0xFFFF * 0.8533;
 			Ro_SP02.omega_m_low = 0;
 		}
-		EQep2Regs.QEPSTS.all = 0x88;// Clear Unit position event flag												     	// Clear overflow error flag
+		EQep2Regs.QEPSTS.all = 0x88; // Clear Unit position event flag												     	// Clear overflow error flag
 	}
 	Ro_SP02.omega_m = Ro_SP02.omega_m_high;
 	if ((Ro_SP02.omega_m >= 15) && (Ro_SP02.omega_m <= 3750))
@@ -774,7 +773,8 @@ void SP_PRO(void) {
 }
 //==============================================================================
 void DPRAM_Process(void) {
-	Uint16 i =0;
+
+
 	INT_ID1 = GpioDataRegs.GPBDAT.bit.GPIO63;
 	DELAY_US(1L);
 	INT_ID2 = GpioDataRegs.GPBDAT.bit.GPIO63;
@@ -800,22 +800,28 @@ void DPRAM_Process(void) {
 			;
 			break;
 		}
-//STA_OUT[]
-		*(XintfZone6 + 0x3FC) = ((int16) STA_OUT[1] & 0xFF);		//DSP Status
-		*(XintfZone6 + 0x3FD) = (((int16) STA_OUT[1] >> 8) & 0xFF);	//DSP Status
+//STA_OUT[4]
+//		*(XintfZone6 + 0x3FC) = ((int16) STA_OUT[0] & 0xFF);		//DSP Status
+//		*(XintfZone6 + 0x3FD) = (((int16) STA_OUT[0] >> 8) & 0xFF);	//DSP Status
+		*(XintfZone6 + 0x295) = (int16)STA_OUT[0] & 0x00FF;
+		*(XintfZone6 + 0x296) = (int16)STA_OUT[0]>>8 & 0x00FF;
 
-		*(XintfZone6 + 0x3FE) = (Cnt_DSP & 0xFF);
-//STA_IN[]
-		STA_IN[0] = (*(XintfZone6 + 0x1FC) & 0x00FF)
-				+ ((*(XintfZone6 + 0x1FD) << 8) & 0xFF00);			//MCU status
+		*(XintfZone6 + 0x3FE) = (Cnt_DSP & 0xFF);	//DSP心跳
+//STA_IN[8]
+//		STA_IN[0] = (*(XintfZone6 + 0x1FC) & 0x00FF)
+//				+ ((*(XintfZone6 + 0x1FD) << 8) & 0xFF00);			//MCU status
+		STA_IN[0] = (*(XintfZone6 + 0x8E) & 0x00FF)
+				+ ((*(XintfZone6 + 0x8F) << 8) & 0xFF00);
+		STA_IN[6] = (*(XintfZone6 + 0x90) & 0x00FF)
+						+ ((*(XintfZone6 + 0x91) << 8) & 0xFF00);
 
-		STA_IN[1] = *(XintfZone6 + 0x3FF);					    //
-//
+		STA_IN[1] = *(XintfZone6 + 0x3FF);					    //MCU心跳
+//---------------------------------------------------
 		if (Cnt_MCU == (Uint16) STA_IN[1]) {
 			Cnt_Err_DSP++;
 			if (Cnt_Err_DSP >= 3) {
 				Cnt_Err_DSP = 0;
-				ERR_DSP_OS[4] |= 0x0004;
+				ERR_DSP[0] |= 0x0004;
 			}
 		}
 		Cnt_MCU = (Uint16) STA_IN[1];
@@ -828,24 +834,30 @@ void DPRAM_Process(void) {
 void DPRAM_PRO_CFG(void) {
 	Uint16 i = 0;
 	//read process
-	for (i = 0; i <= 19; i++) {
-		CUST_MCU_PAR[i] = ((*(XintfZone6 + 0x00 + (2 * i)) & 0x00FF)
+	//---------------CUST_MCU_PAR_HAL[20]---------------------------
+	for (i = 0; i < 20; i++) {
+		CUST_MCU_PAR_HAL[i] = ((*(XintfZone6 + 0x00 + (2 * i)) & 0x00FF)
 				+ ((*(XintfZone6 + 0x01 + (2 * i)) << 8) & 0xFF00));
 	}
-	CUST_MCU_PAR[20] = (*(XintfZone6 + 0x28) & 0x00FF);
-
-	for (i = 0; i <= 39; i++) {
-		CUST_MCU_PAR[i] = ((*(XintfZone6 + 0x29 + (2 * i)) & 0x00FF)
+	//----------------------SensorSel---------------------------------
+	SensorSel = (*(XintfZone6 + 0x28)) & 0x00FF;
+	//---------------------AO[10]-----------------------------
+	for (i = 0; i < 10; i++) {
+		AO_HAL[i] = ((*(XintfZone6 + 0x29 + (2 * i)) & 0x00FF)
 				+ ((*(XintfZone6 + 0x2A + (2 * i)) << 8) & 0xFF00));
+	}
+	//----------------------CUST_MCU_PAR[60]----------------------
+	for (i = 0; i < 60; i++) {
+		CUST_MCU_PAR[i] = (*(XintfZone6 + 0x3D + i) & 0x00FF);
 	}
 	//write process
 	//-----------------CFG_OUT[3]------------------
-	for (i = 0; i <= 2; i++) {
+	for (i = 0; i < 3; i++) {
 		*(XintfZone6 + 0x1FF + (2 * i)) = ((int16) CFG_OUT[i] & 0xFF);
 		*(XintfZone6 + 0x200 + (2 * i)) = (((int16) CFG_OUT[i] >> 8) & 0xFF);
 	}
 	//-------------------自定义接口------------------------
-	for (i = 0; i <= 59; i++) {
+	for (i = 0; i < 60; i++) {
 		*(XintfZone6 + 0x205 + i) = ((int16) (0 * 100) & 0xFF);
 	}
 }
@@ -853,40 +865,40 @@ void DPRAM_PRO_1ms(void) {
 	Uint16 i = 0;
 	//read process
 //0x079
-//	CUST_MCU_1ms[1] = (Uint16)(*(XintfZone6 + 0x79) & 0x00FF);
-//0x07a-0x08d
-	for (i = 0; i <= 19; i++) {
+	DspFltClr = (Uint16) (*(XintfZone6 + 0x79) & 0x00FF);
+//-----------0x07a-0x08d CUST_MCU_1ms[20]--------------
+	for (i = 0; i < 20; i++) {
 		CUST_MCU_1ms[i] = (*(XintfZone6 + 0x7A + i) & 0x00FF);
 	}
 	//write process
-//0x241-0x266 AI[11]~AI[30]
-	for (i = 0; i <= 18; i++) {
+//-------0x241-0x266 AI[11]~AI[30]------------
+	for (i = 0; i < 19; i++) {
 		*(XintfZone6 + 0x241 + (2 * i)) = ((int16) (AI[(11 + i)] * 10) & 0xFF);
 		*(XintfZone6 + 0x242 + (2 * i)) = (((int16) (AI[(11 + i)] * 10) >> 8)
 				& 0xFF);
 	}
-	//0x267-0x27a
-	for (i = 0; i <= 19; i++) {
+	//--------0x267-0x27a---------
+	for (i = 0; i < 20; i++) {
 		*(XintfZone6 + 0x267 + i) = ((int16) CUST_DSP_1ms[i] & 0xFF);
 	}
 }
 void DPRAM_PRO_2ms(void) {
 	Uint16 i = 0;
 //-------------read process------------------
-//
-//	CUST_MCU_1ms[1] = (Uint16)(*(XintfZone6 + 0x79) & 0x00FF);
-//	0x096-0x0bd
-	for (i = 0; i <= 39; i++) {
+//------------------MCU state------------------
+
+//------0x096-0x0bd CUST_MCU_2ms[40]------------------------
+	for (i = 0; i < 40; i++) {
 		CUST_MCU_2ms[i] = (*(XintfZone6 + 0x096 + i) & 0x00FF);
 	}
 	//write process
 	//0x27b-0x288 temperature
-	for (i = 0; i <= 6; i++) {
+	for (i = 0; i < 7; i++) {
 		*(XintfZone6 + 0x27B + (2 * i)) = ((int16) (AI[i] * 10) & 0xFF);
 		*(XintfZone6 + 0x27C + (2 * i)) = (((int16) (AI[i] * 10) >> 8) & 0xFF);
 	}
 	//0x289-0x290 speed
-	for (i = 0; i <= 3; i++) {
+	for (i = 0; i < 4; i++) {
 		*(XintfZone6 + 0x289 + (2 * i)) = ((int16) (AI[(i + 7)] * 10) & 0xFF);
 		*(XintfZone6 + 0x28A + (2 * i)) = (((int16) (AI[(i + 7)] * 10) >> 8)
 				& 0xFF);
@@ -896,37 +908,37 @@ void DPRAM_PRO_2ms(void) {
 		*(XintfZone6 + 0x291 + (2 * i)) = ((int16) (0 * 10) & 0xFF);
 		*(XintfZone6 + 0x292 + (2 * i)) = (((int16) (0 * 10) >> 8) & 0xFF);
 	}
-	//DSP STAT
+	//----DSP STATE------
 
-	//ERR
-	for (i = 0; i <= 2; i++) {
-		*(XintfZone6 + 0x297 + (2 * i)) = ((int16) ERR_DSP_OS[i] & 0xFF);
-		*(XintfZone6 + 0x298 + (2 * i)) = ((int16) (ERR_DSP_OS[i] >> 8) & 0xFF);
+	//---------DSP ERR---------
+	for (i = 0; i < 3; i++) {
+		*(XintfZone6 + 0x297 + (2 * i)) = ((int16) ERR_DSP[i] & 0xFF);
+		*(XintfZone6 + 0x298 + (2 * i)) = ((int16) (ERR_DSP[i] >> 8) & 0xFF);
 	}
-//0x29d-0x2c4
-	for (i = 0; i <= 39; i++) {
+//----------0x29d-0x2c4 CUST_DSP_2ms[40]---------------
+	for (i = 0; i < 40; i++) {
 		*(XintfZone6 + 0x29D + i) = ((int16) CUST_DSP_2ms[i] & 0xFF);
 	}
 }
 void DPRAM_PRO_16ms(void) {
 	Uint16 i = 0;
 	//read process
-	for (i = 0; i <= 39; i++) {
+	for (i = 0; i < 40; i++) {
 		CUST_MCU_16ms[i] = (*(XintfZone6 + 0xBE + i) & 0x00FF);
 	}
 	//write process
-	for (i = 0; i <= 39; i++) {
+	for (i = 0; i < 40; i++) {
 		*(XintfZone6 + 0x2C5 + i) = ((int16) CUST_DSP_16ms[i] & 0xFF);
 	}
 }
 void DPRAM_PRO_64ms(void) {
 	Uint16 i = 0;
 	//read process
-	for (i = 0; i <= 39; i++) {
+	for (i = 0; i < 40; i++) {
 		CUST_MCU_64ms[i] = (*(XintfZone6 + 0xE6 + i) & 0x00FF);
 	}
 	//write process
-	for (i = 0; i <= 39; i++) {
+	for (i = 0; i < 40; i++) {
 		*(XintfZone6 + 0x2ED + i) = ((int16) CUST_DSP_64ms[i] & 0xFF);
 	}
 }
@@ -1149,7 +1161,7 @@ void InitDGMVB(void) {
 //==============================================================================================
 void InitVariables(void) {
 	Uint16 i = 0;
-	Pin = 0;
+
 	INT_ID1 = 1;
 	INT_ID2 = 1;
 
@@ -1202,8 +1214,12 @@ void InitVariables(void) {
 	Pin = 0;
 	Pout = 0;
 //------------------------------------------------------------
+	for (i = 0; i < 3; i++) {
+		ERR_DSP[i] = 0;
+		ERR_EXTR[i] = 0;
+	}
+//-------------------------------------------------
 	for (i = 0; i < 5; i++) {
-		ERR_DSP_OS[i] = 0;
 		DA_CH[i] = 0;
 	}
 //------------------------------------------------------------
@@ -1212,6 +1228,9 @@ void InitVariables(void) {
 		HMI_RBUF[i] = 0;
 		FPGA_RD[i] = 0;
 		FPGA_WR[i] = 0;
+	}
+//------------------------------------------------------------
+	for (i = 0; i < 11; i++) {
 		PWM_OS[i] = 0;
 	}
 //------------------------------------------------------------
@@ -1223,7 +1242,6 @@ void InitVariables(void) {
 	for (i = 0; i < 30; i++) {
 		AD_CH[i] = 0;
 		AI[i] = 0;
-
 	}
 //------------------------------------------------------------
 	for (i = 0; i < 40; i++) {
@@ -1233,6 +1251,10 @@ void InitVariables(void) {
 		CUST_DSP_16ms[i] = 0;
 		CUST_MCU_64ms[i] = 0;
 		CUST_DSP_64ms[i] = 0;
+	}
+//------------------------------------------------------------
+	for (i = 0; i < 60; i++) {
+		CUST_MCU_PAR[i] = 0;
 	}
 //------------------------------------------------------------
 	CONV_ADL();

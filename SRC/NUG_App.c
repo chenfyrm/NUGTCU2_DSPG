@@ -455,13 +455,12 @@ void chopper(void);
 // the functions
 
 void INIT_EV(void) {
-	Uint16 i = 0;
 
 	os.AIHandle = (AI_Handle) &AI[0];
 	os.DI_OSHandle = (DI_OS_Handle) &DI_OS[0];
 	os.CFG_INHandle = (CFG_IN_Handle) &CFG_IN[0];
 	os.STA_INHandle = (STA_IN_Handle) &STA_IN[0];
-	os.ERR_DSPHandle = (ERR_DSP_Handle) &ERR_DSP_OS[0];
+	os.ERR_DSPHandle = (ERR_DSP_Handle) &ERR_DSP[0];
 
 	os.ERR_EXTRHandle = (ERR_EXTR_Handle) &ERR_EXTR[0];
 	os.PWM_OSHandle = (PWM_OS_Handle) &PWM_OS[0];
