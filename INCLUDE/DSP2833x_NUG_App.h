@@ -12,7 +12,6 @@
 // $Release Date: January 01, 2018 $
 //###########################################################################
 
-
 #ifndef DSP2833x_NUG_APP_H
 #define DSP2833x_NUG_APP_H
 //----------------------------------------------------
@@ -39,7 +38,8 @@ extern Uint16 CUST_DSP_16ms[40];
 extern Uint16 CUST_DSP_64ms[40];
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 extern void INIT_EV(void);
@@ -52,7 +52,6 @@ extern void INT_PWM(void);
 #endif /* extern "C" */
 
 #endif   // - end of DSP2833x_NUG_APP_H
-
 //===========================================================================
 // End of file.//===========================================================================
 
