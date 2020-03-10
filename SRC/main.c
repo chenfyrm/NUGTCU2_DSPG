@@ -61,7 +61,7 @@ Uint16 otime,OVCUN,HMI_RBUF[10],HMI_TBUF[10],Pin,Pout,rtemp,scitx_sta;
 //--------------------------------------------------------------------------------
 float32	TMP_Rt,Zero_Ia,Zero_Ib;
 //--------------------------------------------------------------------------------
-int16 AD_CH[30],DA_CH[5],FPGA_RD[10],FPGA_WR[10];
+int16 AD_CH[30],DA_CH[7],FPGA_RD[10],FPGA_WR[10];
 
 Uint16 DI_OS[1],DO_OS[1],CFG_IN[4],CFG_OUT[3],STA_IN[8],STA_OUT[4],PWM_OS[11],ERR_DSP[7],ERR_EXTR[3];
 Uint16 CUST_MCU_PAR[100],CUST_MCU_1ms[20],CUST_MCU_2ms[40],CUST_MCU_16ms[40],CUST_MCU_64ms[40];
@@ -151,7 +151,8 @@ interrupt void ScibRx_isr(void);
 	InitDRV();
 //	DPRAM_WR[0] = 0x0401;
 //	extern void INIT_EV(void);
-		INIT_EV();
+	INIT_EV();
+
 	while(1)
 	{ 	  					
 		Cycle_OS();		//app functions cycle
@@ -337,7 +338,6 @@ void ADC_Process(void)
 	AI[26] = AD_CH[15] * 0.01;//AI31
 	AI[27] = 110;//AI31
 
-	AI[17] = 110;//Vbattery
 }
 //==============================================================================
 void ADC_LS_IOB_Process(void)
@@ -809,18 +809,40 @@ void DPRAM_Process(void)
 	INT_ID2=GpioDataRegs.GPBDAT.bit.GPIO63;
 	if((INT_ID1==0) && (INT_ID2==0))
 	{
+		STA_IN[1] = *(XintfZone6 + 0x3FF) & 0x00FF;//MCU ÐÄÌø
+		STA_IN[0] = (*(XintfZone6 + 0x1FC) & 0x00FF) + ((*(XintfZone6 + 0x1FD) << 8) & 0xFF00);//MCU status
+		STA_IN[6] = (*(XintfZone6 + 0x090) & 0x00FF) + ((*(XintfZone6 + 0x091) << 8) & 0xFF00);//MCU cmd word
+
 		INT_DATA_PRD = (*(XintfZone6 + 0x1FE) & 0x00FF);
 		switch(INT_DATA_PRD)
 			{
 			case 0x00FF:
-				if(STA_OUT[0]<=0x01)
+				if((STA_IN[0]<0x402))
 				{
 					DPRAM_PRO_CFG();
-					STA_OUT[0]=0x02;
+					STA_OUT[0] = 0x01;
 				}
+
+				if(Cnt_MCU == (Uint16)STA_IN[1])
+				{
+					Cnt_Err_DSP++;
+					if(Cnt_Err_DSP>=3)
+						{Cnt_Err_DSP=0;ERR_DSP[0] |= 0x0004;}
+				}
+				Cnt_MCU = (Uint16)STA_IN[1];
+
 					break;
 			case 0x0001:
 				DPRAM_PRO_1ms();
+
+				if(Cnt_MCU == (Uint16)STA_IN[1])
+				{
+					Cnt_Err_DSP++;
+					if(Cnt_Err_DSP>=3)
+						{Cnt_Err_DSP=0;ERR_DSP[0] |= 0x0004;}
+				}
+				Cnt_MCU = (Uint16)STA_IN[1];
+
 					break;
 			case 0x0002:
 				DPRAM_PRO_2ms();
@@ -836,27 +858,9 @@ void DPRAM_Process(void)
 					break;
 			}
 
-		*(XintfZone6 + 0x3FC) = ((int16)STA_OUT[1] & 0xFF);//DSP Status
-		*(XintfZone6 + 0x3FD) = (((int16)STA_OUT[1] >>8) & 0xFF);//DSP Status
-
+		*(XintfZone6 + 0x3FC) = ((int16)STA_OUT[0] & 0xFF);//DSP Status
+		*(XintfZone6 + 0x3FD) = (((int16)STA_OUT[0] >>8) & 0xFF);//DSP Status
 		*(XintfZone6 + 0x3FE) = (Cnt_DSP & 0xFF);
-
-		STA_IN[0] = (*(XintfZone6 + 0x1FC) & 0x00FF) + ((*(XintfZone6 + 0x1FD) << 8) & 0xFF00);//MCU status
-		STA_IN[6] = (*(XintfZone6 + 0x090) & 0x00FF) + ((*(XintfZone6 + 0x091) << 8) & 0xFF00);//MCU cmd word
-		STA_IN[1] = *(XintfZone6 + 0x3FF);//
-
-		if(Cnt_MCU == (Uint16)STA_IN[1])
-		{
-			Cnt_Err_DSP++;
-			if(Cnt_Err_DSP>=5)
-				{Cnt_Err_DSP=0;ERR_DSP[4] |= 0x0004;}
-		}
-		else
-		{
-			Cnt_Err_DSP = 0;
-			ERR_DSP[4] &= (~BIT2);
-		}
-		Cnt_MCU = (Uint16)STA_IN[1];
 
 		INT_ID1=1;
 		INT_ID2=1;
@@ -873,10 +877,14 @@ void DPRAM_PRO_CFG(void)
 		}
 	CUST_MCU_PAR[20] = (*(XintfZone6 + 0x28) & 0x00FF);
 
-	for(i=0;i<=39;i++)
+	for(i=0;i<=9;i++)
 		{
-		CUST_MCU_PAR[i] = ((*(XintfZone6 + 0x29 + (2 * i)) & 0x00FF) + ((*(XintfZone6 + 0x2A + (2 * i)) << 8) & 0xFF00));
+		CUST_MCU_PAR[21+i] = ((*(XintfZone6 + 0x29 + (2 * i)) & 0x00FF) + ((*(XintfZone6 + 0x2A + (2 * i)) << 8) & 0xFF00));
 		}
+
+	for(i=0;i<=59;i++){
+		CUST_MCU_PAR[31+i] = ((*(XintfZone6 + 0x3D + i)) & 0x00FF);
+	}
 	//write process
 	*(XintfZone6 + 0x1FF) = ((int16)CFG_OUT[0] & 0xFF);//App Version
 	*(XintfZone6 + 0x200) = (((int16)CFG_OUT[0] >>8) & 0xFF);//App Version
@@ -1204,7 +1212,7 @@ void InitVariables(void)
 			STA_OUT[i]=0;
 			}
 	//------------------------------------------------------------
-		for(i=0;i<5;i++)
+		for(i=0;i<7;i++)
 			{
 			ERR_DSP[i]=0;
 			DA_CH[i]=0;
@@ -1234,7 +1242,6 @@ void InitVariables(void)
 	{
 		AD_CH[i]=0;
 		AI[i]=0;
-
 	}
 //------------------------------------------------------------
 	for(i=0;i<40;i++)

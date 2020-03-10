@@ -15,16 +15,16 @@
 // the defines
 
 //======================== DSP state ==========================
-#define  ChpIni			0x01    	//芯片初始化状态
-#define	 ChpIniFn	    0x02		//芯片初始化完成状态
-#define  DSPIni			0x03		//DSP控制参数初始化状态
-#define  DSPIniFn		0x04		//系统初始化完成
-#define  OVPTst			0x05		//OVP测试状态
-#define  OVPTstFn		0x06		//OVP测试完成
-#define  PreFlx			0x07		//预励磁状态
-#define  PreFlxFn		0x08		//预励磁完成
-#define  TqOut			0x09		//转矩输出状态
-#define  TqOutFn		0x010		//转矩输出结束状态
+#define  ChpIni			0x00    	//芯片初始化状态
+#define	 ChpIniFn	    0x01		//芯片初始化完成状态
+#define  DSPIni			0x02		//DSP控制参数初始化状态
+#define  DSPIniFn		0x03		//系统初始化完成
+#define  OVPTst			0x04		//OVP测试状态
+#define  OVPTstFn		0x05		//OVP测试完成
+#define  PreFlx			0x06		//预励磁状态
+#define  PreFlxFn		0x07		//预励磁完成
+#define  TqOut			0x08		//转矩输出状态
+#define  TqOutFn		0x09		//转矩输出结束状态
 #define  DisChg			0x0A		//放电状态
 #define  DisChgFn		0x0B		//放电完成状态
 #define  FltStt			0x0C		//故障状态
@@ -539,7 +539,7 @@ void INT_RTOS(void)
 {
 	chopper();
 	SaSoCv();
-	protect();
+//	protect();
 }
 
 void INT_PWM(void)
@@ -575,17 +575,24 @@ void state_machine(void)
 	}
 	else if (NX_DSPSt == DSPIniFn)	// DSP系统初始化完成
 	{
-		if ((NX_MCUCmd & CtOp)||(NX_MCUCmd&CtOpHL))
+		if (os.STA_INHandle->NX_MCUSt < 0x404)
 		{
-			NX_DSPSt = DisChg;
+			;
 		}
-		else if(NX_MCUCmd&CvReSt)
+		else
 		{
-			NX_DSPSt=ChpIni;
-		}
-		else if(NX_MCUCmd&OvpTsEn)
-		{
-			NX_DSPSt = OVPTst;
+			if ((NX_MCUCmd & CtOp)||(NX_MCUCmd & CtOpHL))
+			{
+				NX_DSPSt = DisChg;
+			}
+			else if(NX_MCUCmd&CvReSt)
+			{
+				NX_DSPSt=ChpIni;
+			}
+			else if(NX_MCUCmd&OvpTsEn)
+			{
+				NX_DSPSt = OVPTst;
+			}
 		}
 	}
 	else if(NX_DSPSt==OVPTst)	//OVP测试状态
@@ -619,7 +626,7 @@ void state_machine(void)
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
-			NX_DSPSt = DisChg;	//OVP测试状态
+			NX_DSPSt = DisChg;
 		}
 		else if(NX_MCUCmd&mTqOutFn)
 		{
@@ -660,7 +667,7 @@ void state_machine(void)
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
-			NX_DSPSt = DisChg;	//OVP测试状态
+			NX_DSPSt = DisChg;
 		}
 		else if(NX_MCUCmd&mTqOutFn)
 		{
@@ -674,7 +681,7 @@ void state_machine(void)
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
-			NX_DSPSt = DisChg;	//OVP测试状态
+			NX_DSPSt = DisChg;
 		}
 		else if(NX_MCUCmd&CvStAg)
 		{
@@ -734,25 +741,23 @@ void state_machine(void)
 			NX_DSPSt=ChpIni;
 		}
 	}
-	else if(NX_DSPSt <= ChpIniFn)
-	{
-//		os.ERR_DSPHandle->ERR_DSP1.all=0;
-		os.ERR_DSPHandle->ERR_DSP2.all=0;
-		os.ERR_DSPHandle->ERR_DSP3.all=0;
-		Nt_WarnFn = 0;
-	}
 	else
 	{
 		os.ERR_DSPHandle->ERR_DSP2.bit.L_Stt = 1;
 	}
 
-	//reset
+	//reset fault
 	if(NX_MCUCmd&DspClr)
 	{
-//		os.ERR_DSPHandle->ERR_DSP1.all=0;
 		os.ERR_DSPHandle->ERR_DSP2.all=0;
 		os.ERR_DSPHandle->ERR_DSP3.all=0;
 	}
+
+	//restart convert
+//	if(NX_MCUCmd&CvReSt)
+//	{
+//		NX_DSPSt = ChpIni;
+//	}
 }
 
 void InitApp(void)
@@ -807,8 +812,8 @@ void ouput(void)
 
 void CvControl(void)
 {
-	CvCtrl.Analog[0] = XX_UIIn.XUFt_UDC;
-	CvCtrl.Analog[1] = XX_UIIn.XUFt_UDC;
+	CvCtrl.Analog[0] = XX_UIIn.XIFt_IA;
+	CvCtrl.Analog[1] = XX_UIIn.XIFt_IB;
 	CvCtrl.Analog[2] = XX_UIIn.XUFt_UDC;
 	CvCtrl.Analog[3] = XX_SpdDrIn.XVFt_Spd1;
 
@@ -819,7 +824,7 @@ void CvControl(void)
 	S_PreFlxFlg = 1.0;
 
 	CvCtrl.Duty[0] = 0.001;
-	CvCtrl.Duty[1] = 1-CvCtrl.Duty[0];
+	CvCtrl.Duty[1] = 1-CvCtrl.Duty[1];
 	CvCtrl.Duty[2] = 0.5;
 	CvCtrl.Duty[3] = 0.5;
 	CvCtrl.Duty[4] = 0.5;
@@ -827,25 +832,39 @@ void CvControl(void)
 
 void chopper(void)
 {
-	if(NX_DSPSt==OVPTst){
+	if (NX_DSPSt == OVPTst)
+	{
 		YX_PwmOut.YTm_Pwm4PdVv = 4687;
 		YX_PwmOut.YX_Pwm4AVv = 2343;
 		YX_PwmOut.YX_Pwm4BVv = 2343;
 
 		SX_OvpTsOk = 1;
 	}
-
-	if(XX_UIIn.XUFt_UDC > 1900)
+	else if (NX_DSPSt == DisChg)
 	{
 		YX_PwmOut.YTm_Pwm4PdVv = 4687;
-		YX_PwmOut.YX_Pwm4AVv = 3515;
-		YX_PwmOut.YX_Pwm4BVv = 3515;
+		YX_PwmOut.YX_Pwm4AVv = 1000;
+		YX_PwmOut.YX_Pwm4BVv = 1000;
 
-	}else if(XX_UIIn.XUFt_UDC < 1700){
-		YX_PwmOut.YTm_Pwm4PdVv = 4687;
-		YX_PwmOut.YX_Pwm4AVv = 0;
-		YX_PwmOut.YX_Pwm4BVv = 0;
+		SX_DisChgOK = 1;
 	}
+	else
+	{
+		if (XX_UIIn.XUFt_UDC > 1900)
+		{
+			YX_PwmOut.YTm_Pwm4PdVv = 4687;
+			YX_PwmOut.YX_Pwm4AVv = 3515;
+			YX_PwmOut.YX_Pwm4BVv = 3515;
+
+		}
+		else if (XX_UIIn.XUFt_UDC < 1700)
+		{
+			YX_PwmOut.YTm_Pwm4PdVv = 4687;
+			YX_PwmOut.YX_Pwm4AVv = 0;
+			YX_PwmOut.YX_Pwm4BVv = 0;
+		}
+	}
+
 	os.PWM_OSHandle->YTm_Pwm4PdVv = YX_PwmOut.YTm_Pwm4PdVv;
 	os.PWM_OSHandle->YX_Pwm4AVv = YX_PwmOut.YX_Pwm4AVv;
 	os.PWM_OSHandle->YX_Pwm4BVv = YX_PwmOut.YX_Pwm4BVv;
