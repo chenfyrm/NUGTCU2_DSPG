@@ -15,18 +15,19 @@
 // the defines
 
 //======================== DSP state ==========================
-#define  ChpIni			0x00    	//芯片初始化状态
-#define  DSPIni			0x01		//DSP控制参数初始化状态
-#define  DSPIniFn		0x02		//系统初始化完成
-#define  OVPTst			0x03		//OVP测试状态
-#define  OVPTstFn		0x04		//OVP测试完成
-#define  PreFlx			0x05		//预励磁状态
-#define  PreFlxFn		0x06		//预励磁完成
-#define  TqOut			0x07		//转矩输出状态
-#define  TqOutFn		0x08		//转矩输出结束状态
-#define  DisChg			0x09		//放电状态
-#define  DisChgFn		0x0A		//放电完成状态
-#define  FltStt			0x0B		//故障状态
+#define  ChpIni			0x01    	//芯片初始化状态
+#define	 ChpIniFn	    0x02		//芯片初始化完成状态
+#define  DSPIni			0x03		//DSP控制参数初始化状态
+#define  DSPIniFn		0x04		//系统初始化完成
+#define  OVPTst			0x05		//OVP测试状态
+#define  OVPTstFn		0x06		//OVP测试完成
+#define  PreFlx			0x07		//预励磁状态
+#define  PreFlxFn		0x08		//预励磁完成
+#define  TqOut			0x09		//转矩输出状态
+#define  TqOutFn		0x010		//转矩输出结束状态
+#define  DisChg			0x0A		//放电状态
+#define  DisChgFn		0x0B		//放电完成状态
+#define  FltStt			0x0C		//故障状态
 
 #define  NX_DSPSt       (os.STA_OUTHandle->DSPSt)
 
@@ -417,6 +418,7 @@ typedef struct _XX_UIInStc_t_
 	float32 XIFt_IDC;						// DC-link current, A
 	float32 XIFt_IA;						// phase A current, A
 	float32 XIFt_IB;						// phase B current, A
+	float32 XIFt_IC;
 } XX_UIInStc_t;
 
 typedef struct _XX_SpdDrInStc_t_
@@ -440,56 +442,6 @@ typedef struct _YX_PwmOutStc_t_
 	Uint16 YX_Pwm4BVv;			// PWM4B value, chopper 2
 } YX_PwmOutStc_t;
 
-//struct DSPAPPFLT1_BITS
-//{
-//	Uint16 L_Stt :1;		//状态机故障
-//	Uint16 L_Init :1;		//初始化故障
-//	Uint16 L_OvpTst :1;	//ovp测试故障
-//	Uint16 L_PreFlxSyn :1;	//预励磁同步失败
-//	Uint16 L_DisChg :1;	//放电故障
-//	Uint16 rsvd :11;
-//};
-//union DSPAPPFLT1_REG
-//{
-//	Uint16 all;
-//	struct DSPAPPFLT1_BITS bit;
-//};
-//
-//struct DSPAPPFLT2_BITS
-//{
-//	Uint16 L_DCOV :1;		//直流过压
-//	Uint16 L_DCLV :1;		//直流欠压
-//	Uint16 L_DCOI :1;		//直流过流
-//	Uint16 L_IAOI :1;		//A相过流
-//	Uint16 L_IBOI :1;		//B相过流
-//	Uint16 L_ICOI :1;		//C相过流
-//	Uint16 L_IUB :1;		//电流三相不平衡
-//	Uint16 L_PH :1;		//缺相
-//	Uint16 L_SpdO :1;		//超速
-//	Uint16 rsvd :7;
-//};
-//union DSPAPPFLT2_REG
-//{
-//	Uint16 all;
-//	struct DSPAPPFLT2_BITS bit;
-//};
-//
-//struct DSPAPPFLT3_BITS
-//{
-//	Uint16 L_UABOV :1;		//UV线电压过电压
-//	Uint16 L_UBCOV :1;		//VW线电压过电压
-//	Uint16 L_UCAOV :1;		//WU线电压过电压
-//	Uint16 L_MdOT :1;		//模块过温
-//	Uint16 L_MtOT :1;		//电机过温
-//	Uint16 L_Frq :1;		//频率错误
-//	Uint16 rsvd :10;
-//};
-//union DSPAPPFLT3_REG
-//{
-//	Uint16 all;
-//	struct DSPAPPFLT3_BITS bit;
-//};
-
 typedef struct _CvCtrl_Obj_ {
 	float32 Analog[4];//电压  、alpha电流、beta电流、转速
 	float32 CmdTq;//转矩指令
@@ -497,6 +449,25 @@ typedef struct _CvCtrl_Obj_ {
 	float32	Duty[5];//开关周期、模式、A占空比、B占空比、C占空比
 }CvCtrl_Obj,*CvCtrl_Handle;
 
+typedef struct _XX_Pro_Obj_{
+	float32	PU_UDCOVL;
+	float32 PU_UDCLVL;
+	float32 PI_IDCOIL;
+	float32 PI_IAOIL;
+	float32 PI_IBOIL;
+	float32 PI_ICOIL;
+	float32 PX_SpdOL;
+
+	Uint16 Cnt_UDCOV;
+	Uint16 Cnt_UDCLV;
+	Uint16 Cnt_IDCOI;
+	Uint16 Cnt_IAOI;
+	Uint16 Cnt_IBOI;
+	Uint16 Cnt_ICOI;
+	Uint16 Cnt_IUB;
+	Uint16 Cnt_PH;
+	Uint16 Cnt_SpdO;
+}XX_Pro_Obj;
 // **************************************************************************
 // the globals
 
@@ -521,6 +492,8 @@ volatile XX_SpdDrInStc_t XX_SpdDrIn;
 volatile YX_PwmOutStc_t YX_PwmOut;
 
 volatile CvCtrl_Obj CvCtrl;
+
+volatile XX_Pro_Obj XX_Pro;
 // **************************************************************************
 // the function prototypes
 void state_machine(void);
@@ -579,20 +552,24 @@ void INT_PWM(void)
 void state_machine(void)
 {
 	//operating state
-	if (NX_DSPSt == DSPIni)
+	if (NX_DSPSt == ChpIniFn)
 	{
 		if(NX_MCUCmd & MCUHwIniFn)					//MCU硬件初始化完成
 		{
-			if (Nt_WarnFn == 1)
+			NX_DSPSt = DSPIni;
+		}
+	}
+	else if(NX_DSPSt == DSPIni)
+	{
+		if (Nt_WarnFn == 1)
+		{
+			if (os.ERR_DSPHandle->ERR_DSP2.bit.L_Init == 0)
 			{
-				if (os.ERR_DSPHandle->ERR_DSP2.bit.L_Init == 0)
-				{
-					NX_DSPSt = DSPIniFn;		//DSP initialization finished
-				}
-				else
-				{
-					NX_DSPSt = FltStt;
-				}
+				NX_DSPSt = DSPIniFn;		//DSP initialization finished
+			}
+			else
+			{
+				NX_DSPSt = FltStt;
 			}
 		}
 	}
@@ -757,7 +734,7 @@ void state_machine(void)
 			NX_DSPSt=ChpIni;
 		}
 	}
-	else if(NX_DSPSt==ChpIni)
+	else if(NX_DSPSt <= ChpIniFn)
 	{
 //		os.ERR_DSPHandle->ERR_DSP1.all=0;
 		os.ERR_DSPHandle->ERR_DSP2.all=0;
@@ -789,17 +766,16 @@ void input(void)
 {
 	XX_UIIn.XUFt_UDC = os.AIHandle->XUFt_UDC1;
 	XX_UIIn.XUFt_U3Ph = os.AIHandle->XUFt_UPh;
+	XX_UIIn.XIFt_IDC = os.AIHandle->XIFt_IDC;
 	XX_UIIn.XIFt_IA = os.AIHandle->XIFt_IA;
 	XX_UIIn.XIFt_IB = os.AIHandle->XIFt_IB;
-	XX_UIIn.XIFt_IDC = os.AIHandle->XIFt_IDC;
+	XX_UIIn.XIFt_IC = -XX_UIIn.XIFt_IA-XX_UIIn.XIFt_IB;
 
 	XX_SpdDrIn.XVFt_Spd1 = os.AIHandle->XVFt_Spd1;
 	XX_SpdDrIn.XVFt_Spd2 = os.AIHandle->XVFt_Spd2;
 	XX_SpdDrIn.XVFt_Spd3 = os.AIHandle->XVFt_Spd3;
 	XX_SpdDrIn.XVFt_Spd4 = os.AIHandle->XVFt_Spd4;
 	XX_SpdDrIn.SX_MotDir_Flt = ((Uint32)(os.AIHandle->NX_SpDir)&0x0000FFFF);
-
-
 }
 
 void ouput(void)
@@ -856,7 +832,7 @@ void chopper(void)
 		YX_PwmOut.YX_Pwm4AVv = 2343;
 		YX_PwmOut.YX_Pwm4BVv = 2343;
 
-		SX_OvpTsOk == 1;
+		SX_OvpTsOk = 1;
 	}
 
 	if(XX_UIIn.XUFt_UDC > 1900)
@@ -877,7 +853,51 @@ void chopper(void)
 
 void protect(void)
 {
+	//
 
+	//
+
+	//
+
+	//L_IAOI
+	if (fabs(XX_UIIn.XIFt_IA) > XX_Pro.PI_IAOIL)
+	{
+		if (XX_Pro.Cnt_IAOI > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_IAOI = 1;
+		else
+			XX_Pro.Cnt_IAOI++;
+	}
+	else
+		XX_Pro.Cnt_IAOI = 0;
+	//
+	if (fabs(XX_UIIn.XIFt_IB) > XX_Pro.PI_IBOIL)
+	{
+		if (XX_Pro.Cnt_IBOI > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_IBOI = 1;
+		else
+			XX_Pro.Cnt_IBOI++;
+	}
+	else
+		XX_Pro.Cnt_IBOI = 0;
+	//
+	if (fabs(XX_UIIn.XIFt_IC) > XX_Pro.PI_ICOIL)
+	{
+		if (XX_Pro.Cnt_ICOI > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_ICOI = 1;
+		else
+			XX_Pro.Cnt_ICOI++;
+	}
+	else
+		XX_Pro.Cnt_ICOI = 0;
+
+	//
+
+	//
+
+	//
+
+
+	//
 	if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
 			|| (os.ERR_DSPHandle->ERR_DSP3.all))
 	{
