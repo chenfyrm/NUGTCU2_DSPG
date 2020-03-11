@@ -49,13 +49,30 @@
 
 #define  NX_MCUCmd		(os.STA_INHandle->MCUCmd.all)
 
+//========================flag==============================================
+//flag[0]
+#define SL_AppIni		0x00
+#define	SL_Run			0x01
+#define SL_PreFlxOk		0x02
+#define SL_DisChgOk		0x03
+
+//flag[1]
+#define SL_DspErr 	 	0x10
+
 //===========================CvSaSo======================================
 #define  M_CvSa()		(os.DO_OSHandle->DO1.bit.L_InvEn = 1)
 #define	 M_CvSo()       (os.DO_OSHandle->DO1.bit.L_InvEn = 0)
 
+//======================================================================
+#define	M_SetFlag(x)		(flag[(x & 0xF0)>>4] |= (((Uint16)0x0001)<<(x & 0x0F)))
+#define	M_ClrFlag(x)		(flag[(x & 0xF0)>>4] &=~ (((Uint16)0x0001)<<(x & 0x0F)))
+#define	M_NotFlag(x)		(flag[(x & 0xF0)>>4] ^= (((Uint16)0x0001)<<(x & 0x0F)))
+#define	M_ChkFlag(x)		(flag[(x & 0xF0)>>4] &(((Uint16)0x0001)<<(x & 0x0F)))
+
 // **************************************************************************
 // the typedefs
 
+//---------------------------------AI---------------------------------
 typedef struct _AI_Obj_
 {
 	float32 XTpFt_MdAm_Flt; //环温  AI05
@@ -95,6 +112,7 @@ typedef struct _AI_Obj_
 	float32 rsvd2;
 } AI_Obj, *AI_Handle;
 
+//---------------------------------DI_OS---------------------------------
 struct DI1_BITS
 {
 	Uint16 L_OptoFb :1;
@@ -111,6 +129,7 @@ typedef struct _DI_OS_Obj_
 	union DI1_REG DI1;
 } DI_OS_Obj, *DI_OS_Handle;
 
+//---------------------------------CFG_IN---------------------------------
 typedef struct _CFG_IN_Obj_
 {
 	Uint16 NX_MCUVer;
@@ -119,6 +138,7 @@ typedef struct _CFG_IN_Obj_
 	Uint16 rsvd2;
 } CFG_IN_Obj, *CFG_IN_Handle;
 
+//---------------------------------STA_IN---------------------------------
 struct MCU_CMD_BITS
 {
 	Uint16 L_DspRst :1;				//1    bit0:  reset DSP   请求DSP软件重启DSP reset
@@ -157,6 +177,7 @@ typedef struct _STA_IN_Obj_
 	Uint16 rsvd2;
 } STA_IN_Obj, *STA_IN_Handle;
 
+//---------------------------------ERR_DSP---------------------------------
 struct ERR_DSP1_BITS
 {
 	Uint16 L_DPRAMRd :1;
@@ -216,14 +237,20 @@ union ERR_DSP3_REG
 	Uint16 all;
 	struct ERR_DSP3_BITS bit;
 };
-
 typedef struct _ERR_DSP_Obj_
 {
+	//底层故障
 	union ERR_DSP1_REG ERR_DSP1;
-	union ERR_DSP2_REG ERR_DSP2;
-	union ERR_DSP3_REG ERR_DSP3;
+	Uint16 rsvd1;
+	//应用层故障
+	union ERR_DSP2_REG ERR_DSP2;//状态类
+	union ERR_DSP3_REG ERR_DSP3;//信号类
+	Uint16 rsvd2;
+	Uint16 rsvd3;
+	Uint16 rsvd4;
 } ERR_DSP_Obj, *ERR_DSP_Handle;
 
+//---------------------------------ERR_EXTR---------------------------------
 struct ERR_EXTR1_BITS
 {
 	Uint16 L_PWM1A :1;
@@ -255,6 +282,7 @@ typedef struct _ERR_EXTR_Obj_
 	Uint16 rsvd2;
 } ERR_EXTR_Obj, *ERR_EXTR_Handle;
 
+//---------------------------------PWM_OS---------------------------------
 typedef struct _PWM_OS_Obj_
 {
 	Uint16 YTm_PwmPdVv;
@@ -272,6 +300,7 @@ typedef struct _PWM_OS_Obj_
 	Uint16 rsvd1;
 } PWM_OS_Obj, *PWM_OS_Handle;
 
+//---------------------------------DO_OS---------------------------------
 struct DO1_BITS
 {
 	Uint16 L_InvEn :1;
@@ -287,6 +316,7 @@ typedef struct _DO_OS_Obj_
 	union DO1_REG DO1;
 } DO_OS_Obj, *DO_OS_Handle;
 
+//---------------------------------CFG_OUT---------------------------------
 typedef struct _CFG_OUT_Obj_
 {
 	Uint16 NX_DSPAppVer;
@@ -294,6 +324,7 @@ typedef struct _CFG_OUT_Obj_
 	Uint16 rsvd2;
 } CFG_OUT_Obj, *CFG_OUT_Handle;
 
+//---------------------------------STA_OUT---------------------------------
 typedef struct _STA_OUT_Obj_
 {
 	Uint16 DSPSt;
@@ -302,6 +333,8 @@ typedef struct _STA_OUT_Obj_
 	Uint16 rsvd3;
 } STA_OUT_Obj, *STA_OUT_Handle;
 
+
+//---------------------------------------------------------
 typedef struct _HSTPDA_Obj_
 {
 	Uint16 NX_MtNo;
@@ -336,7 +369,6 @@ typedef struct _HSTPDA_Obj_
 
 	float32 PX_DclkFlt1;
 	float32 PX_DclkFlt2;
-
 } HSTPDA_Obj, *HSTPDA_Handle;
 
 typedef struct _HSTIDA_Obj_
@@ -384,33 +416,7 @@ typedef struct _OS_Obj_
 	STA_OUT_Handle STA_OUTHandle;
 } OS_Obj, *OS_Handle;
 
-//------------------------------------------------------
-struct COM_BITS
-{						// S_FltSt1
-	Uint16 TA0 :1;		// Udc过压/欠压
-	Uint16 TA1 :1;		// Idc过流
-	Uint16 TA2 :1;		// Idc采样失效
-	Uint16 TA3 :1;		// Udc采样失效
-	Uint16 TA4 :1;		// DSP过载
-	Uint16 TA5 :1;		// Ia过流
-	Uint16 TA6 :1;		// Ib过流
-	Uint16 TA7 :1;		// Ic过流
-	Uint16 TA8 :1;		// Iac（交流电流）不平衡
-	Uint16 TA9 :1;		// Ia失相
-	Uint16 TA10 :1;		// Ib失相
-	Uint16 TA11 :1;		// Ic失相
-	Uint16 TA12 :1;		// Ia观测故障
-	Uint16 TA13 :1;		// Ib观测故障
-	Uint16 TA14 :1;		// Ic观测故障
-	Uint16 TA15 :1;		// Iac（交流电流）采样失效
-};
-union WARN_REG
-{
-	Uint16 all;
-	struct COM_BITS bit;
-};
-
-//------------------------------
+//---------------------------------------
 typedef struct _XX_UIInStc_t_
 {
 	float32 XUFt_UDC;   		    		// DC-link voltage, V
@@ -477,15 +483,6 @@ volatile HSTPDA_Obj hstpda;
 volatile HSTIDA_Obj hstida;
 volatile HSTODA_Obj hstoda;
 
-//-------------------------------------------------------------------------
-volatile Uint16 Nt_WarnFn = 0;
-volatile Uint16 SX_NtFlt = 0;
-
-volatile float32 WM_TqCmd = 0; 			// default: = 0
-volatile float32 S_PreFlxFlg = 2;		// default: = 2;
-volatile int16 SX_DisChgOK = 2;			// default: = 2;
-volatile int16 SX_OvpTsOk = 2;// default: = 2;		// OVP test ok, default: 2
-
 //-------------------------
 volatile XX_UIInStc_t XX_UIIn;
 volatile XX_SpdDrInStc_t XX_SpdDrIn;
@@ -494,6 +491,20 @@ volatile YX_PwmOutStc_t YX_PwmOut;
 volatile CvCtrl_Obj CvCtrl;
 
 volatile XX_Pro_Obj XX_Pro;
+
+//-------------------------------------------------------------------------
+volatile Uint16 Nt_WarnFn = 0;
+
+volatile Uint16 flag[16];
+
+volatile float32 WM_TqCmd = 0; 			// default: = 0
+volatile float32 S_PreFlxFlg = 2;		// default: = 2;
+
+volatile int16 SX_DisChgOK = 2;			// default: = 2;
+volatile int16 SX_OvpTsOk = 2;// default: = 2;		// OVP test ok, default: 2
+
+volatile Uint16 SX_Run = 0;
+
 // **************************************************************************
 // the function prototypes
 void state_machine(void);
@@ -527,32 +538,44 @@ void INIT_EV(void)
 
 void Cycle_OS(void)
 {
-	state_machine();
-
-	if (NX_DSPSt == DSPIni)
+	if (NX_DSPSt >= ChpIniFn)
 	{
-		InitApp();
+		if (NX_DSPSt == DSPIni)
+		{
+			InitApp();
+		}
 	}
 }
 
 void INT_RTOS(void)
 {
-	chopper();
-	SaSoCv();
-//	protect();
+	if (NX_DSPSt >= ChpIniFn)
+	{
+		state_machine();
+		SaSoCv();
+		chopper();
+//		protect();
+	}
 }
 
 void INT_PWM(void)
 {
-	input();
-	CvControl();
-	ouput();
+	if (NX_DSPSt >= ChpIniFn)
+	{
+		input();
+		CvControl();
+		ouput();
+	}
 }
 
 void state_machine(void)
 {
 	//operating state
-	if (NX_DSPSt == ChpIniFn)
+	if (NX_DSPSt == ChpIni)
+	{
+		;
+	}
+	else if (NX_DSPSt == ChpIniFn)
 	{
 		if(NX_MCUCmd & MCUHwIniFn)					//MCU硬件初始化完成
 		{
@@ -566,33 +589,23 @@ void state_machine(void)
 			if (os.ERR_DSPHandle->ERR_DSP2.bit.L_Init == 0)
 			{
 				NX_DSPSt = DSPIniFn;		//DSP initialization finished
-			}
-			else
-			{
-				NX_DSPSt = FltStt;
+				Nt_WarnFn = 0;
 			}
 		}
 	}
 	else if (NX_DSPSt == DSPIniFn)	// DSP系统初始化完成
 	{
-		if (os.STA_INHandle->NX_MCUSt < 0x404)
+		if ((NX_MCUCmd & CtOp)||(NX_MCUCmd & CtOpHL))
 		{
-			;
+			NX_DSPSt = DisChg;
 		}
-		else
+		else if(NX_MCUCmd&CvReSt)
 		{
-			if ((NX_MCUCmd & CtOp)||(NX_MCUCmd & CtOpHL))
-			{
-				NX_DSPSt = DisChg;
-			}
-			else if(NX_MCUCmd&CvReSt)
-			{
-				NX_DSPSt=ChpIni;
-			}
-			else if(NX_MCUCmd&OvpTsEn)
-			{
-				NX_DSPSt = OVPTst;
-			}
+			NX_DSPSt=ChpIni;
+		}
+		else if(NX_MCUCmd&OvpTsEn)
+		{
+			NX_DSPSt = OVPTst;
 		}
 	}
 	else if(NX_DSPSt==OVPTst)	//OVP测试状态
@@ -604,11 +617,13 @@ void state_machine(void)
 		else if(SX_OvpTsOk==1)			//测试通过
 		{
 			NX_DSPSt=OVPTstFn;		//OVP完成
+			SX_OvpTsOk = 2;
 		}
 		else if(SX_OvpTsOk==0)		//测试未通过
 		{
 			NX_DSPSt = FltStt;
 			os.ERR_DSPHandle->ERR_DSP2.bit.L_OvpTst = 1;	//OVP test fail
+			SX_OvpTsOk = 2;
 		}
 	}
 	else if(NX_DSPSt==OVPTstFn)	//OVP测试完成状态
@@ -746,22 +761,79 @@ void state_machine(void)
 		os.ERR_DSPHandle->ERR_DSP2.bit.L_Stt = 1;
 	}
 
+	//
+	if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
+			|| (os.ERR_DSPHandle->ERR_DSP3.all))
+	{
+		NX_DSPSt = FltStt;
+	}
+
 	//reset fault
 	if(NX_MCUCmd&DspClr)
 	{
 		os.ERR_DSPHandle->ERR_DSP2.all=0;
 		os.ERR_DSPHandle->ERR_DSP3.all=0;
 	}
-
-	//restart convert
-//	if(NX_MCUCmd&CvReSt)
-//	{
-//		NX_DSPSt = ChpIni;
-//	}
 }
 
 void InitApp(void)
 {
+	Uint16 i = 0;
+	Uint16 *ptr = NULL;
+
+	os.ERR_DSPHandle->ERR_DSP2.all = 0;
+	os.ERR_DSPHandle->ERR_DSP3.all = 0;
+
+	ptr = (Uint16*)os.PWM_OSHandle;
+	for(i = 0;i<sizeof(PWM_OS_Obj);i++){
+		*(ptr + i) = 0;
+	}
+	os.PWM_OSHandle->YTm_PwmPdVv = 0.001*(150.0e6/8.0);
+	os.PWM_OSHandle->YX_PwmMo = 21;
+	os.PWM_OSHandle->YX_Pwm1AVv = 0.5*os.PWM_OSHandle->YTm_PwmPdVv;
+	os.PWM_OSHandle->YX_Pwm2AVv = 0.5*os.PWM_OSHandle->YTm_PwmPdVv;
+	os.PWM_OSHandle->YX_Pwm3AVv = 0.5*os.PWM_OSHandle->YTm_PwmPdVv;
+	os.PWM_OSHandle->YTm_Pwm4PdVv = 0.0002*(150.0e6/8.0);
+	os.PWM_OSHandle->YX_Pwm4AVv = 0;
+
+	ptr = (Uint16*)os.DO_OSHandle;
+	for(i = 0;i<sizeof(DO_OS_Obj);i++){
+		*(ptr + i) = 0;
+	}
+
+	ptr = (Uint16*)os.CFG_OUTHandle;
+	for(i = 0;i<sizeof(CFG_OUT_Obj);i++){
+		*(ptr + i) = 0;
+	}
+	os.CFG_OUTHandle->NX_DSPAppVer = 0x0011;
+
+	ptr = (Uint16*)os.STA_OUTHandle;
+	for(i = 0;i<sizeof(STA_OUT_Obj);i++){
+		*(ptr + i) = 0;
+	}
+	os.STA_OUTHandle->DSPSt = DSPIni;
+
+	ptr = (Uint16*)&CvCtrl;
+	for(i = 0;i<sizeof(CvCtrl_Obj);i++){
+		*(ptr + i) = 0;
+	}
+	CvCtrl.Duty[0] = 0.001;
+	CvCtrl.Duty[0] = 1.0;
+	CvCtrl.Duty[0] = 0.5;
+	CvCtrl.Duty[0] = 0.5;
+	CvCtrl.Duty[0] = 0.5;
+
+	ptr = (Uint16*)&XX_Pro;
+	for(i = 0;i<sizeof(XX_Pro_Obj);i++){
+		*(ptr + i) = 0;
+	}
+	XX_Pro.PU_UDCOVL = 1900.0;
+	XX_Pro.PU_UDCLVL = 500.0;
+	XX_Pro.PI_IDCOIL = 200.0;
+	XX_Pro.PI_IAOIL = 500.0;
+	XX_Pro.PI_IBOIL = 500.0;
+	XX_Pro.PI_ICOIL = 500.0;
+	XX_Pro.PX_SpdOL = 4000.0;
 
 	Nt_WarnFn = 1;			//初始化完成
 	os.ERR_DSPHandle->ERR_DSP2.bit.L_Init = 0;//DSP2 initialization failed
@@ -785,22 +857,35 @@ void input(void)
 
 void ouput(void)
 {
-	if(1.0 == CvCtrl.Duty[1]){
-		YX_PwmOut.YX_PwmMo = 1;
-	}else{
+//	if(1.0 == CvCtrl.Duty[1]){
+//		YX_PwmOut.YX_PwmMo = ((1<<0)&(1<<2)&(1<<4))&0x0003;
+//	}else{
+//		YX_PwmOut.YX_PwmMo = 0;
+//	}
+
+	if(YX_PwmOut.YX_PwmMo == 21)
+	{
 		YX_PwmOut.YX_PwmMo = 0;
 	}
+	else
+	{
+		YX_PwmOut.YX_PwmMo = 21;
+	}
 
-	YX_PwmOut.YTm_PwmPdVv = CvCtrl.Duty[0] / (150e6 / 8);
+	YX_PwmOut.YTm_PwmPdVv = (Uint16)(CvCtrl.Duty[0] * (150.0e6 / 8.0));
 
-	if(YX_PwmOut.YX_PwmMo == 1){
+//	YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[2];
+//	YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[3];
+//	YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[4];
+
+	if(YX_PwmOut.YX_PwmMo == 21){
 		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[2];
-		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[3];
-		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[4];
+		YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[3];
+		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*CvCtrl.Duty[4];
 	}else{
 		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-CvCtrl.Duty[2]);
-		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-CvCtrl.Duty[3]);
-		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-CvCtrl.Duty[4]);
+		YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-CvCtrl.Duty[3]);
+		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-CvCtrl.Duty[4]);
 	}
 
 	os.PWM_OSHandle->YX_PwmMo = YX_PwmOut.YX_PwmMo;
@@ -816,35 +901,31 @@ void CvControl(void)
 	CvCtrl.Analog[1] = XX_UIIn.XIFt_IB;
 	CvCtrl.Analog[2] = XX_UIIn.XUFt_UDC;
 	CvCtrl.Analog[3] = XX_SpdDrIn.XVFt_Spd1;
-
 	CvCtrl.CmdTq = hstida.CTq_TQ;
-
 	CvCtrl.SpDir = XX_SpdDrIn.SX_MotDir_Flt;
 
 	S_PreFlxFlg = 1.0;
 
 	CvCtrl.Duty[0] = 0.001;
-	CvCtrl.Duty[1] = 1-CvCtrl.Duty[1];
-	CvCtrl.Duty[2] = 0.5;
-	CvCtrl.Duty[3] = 0.5;
-	CvCtrl.Duty[4] = 0.5;
+	CvCtrl.Duty[1] = 1.0-CvCtrl.Duty[1];
+	CvCtrl.Duty[2] = 0.2;
+	CvCtrl.Duty[3] = 0.3;
+	CvCtrl.Duty[4] = 0.4;
 }
 
 void chopper(void)
 {
 	if (NX_DSPSt == OVPTst)
 	{
-		YX_PwmOut.YTm_Pwm4PdVv = 4687;
-		YX_PwmOut.YX_Pwm4AVv = 2343;
-		YX_PwmOut.YX_Pwm4BVv = 2343;
+		YX_PwmOut.YTm_Pwm4PdVv = 0.00025*(150.0e6/8.0);
+		YX_PwmOut.YX_Pwm4AVv = 0.5*YX_PwmOut.YTm_Pwm4PdVv;
 
 		SX_OvpTsOk = 1;
 	}
 	else if (NX_DSPSt == DisChg)
 	{
-		YX_PwmOut.YTm_Pwm4PdVv = 4687;
-		YX_PwmOut.YX_Pwm4AVv = 1000;
-		YX_PwmOut.YX_Pwm4BVv = 1000;
+		YX_PwmOut.YTm_Pwm4PdVv = 0.00025*(150.0e6/8.0);
+		YX_PwmOut.YX_Pwm4AVv = 0.25*YX_PwmOut.YTm_Pwm4PdVv;
 
 		SX_DisChgOK = 1;
 	}
@@ -852,33 +933,53 @@ void chopper(void)
 	{
 		if (XX_UIIn.XUFt_UDC > 1900)
 		{
-			YX_PwmOut.YTm_Pwm4PdVv = 4687;
-			YX_PwmOut.YX_Pwm4AVv = 3515;
-			YX_PwmOut.YX_Pwm4BVv = 3515;
-
+			YX_PwmOut.YTm_Pwm4PdVv = 0.00025*(150.0e6/8.0);
+			YX_PwmOut.YX_Pwm4AVv = 0.75*YX_PwmOut.YTm_Pwm4PdVv;
 		}
 		else if (XX_UIIn.XUFt_UDC < 1700)
 		{
-			YX_PwmOut.YTm_Pwm4PdVv = 4687;
+			YX_PwmOut.YTm_Pwm4PdVv = 0.00025*(150.0e6/8.0);
 			YX_PwmOut.YX_Pwm4AVv = 0;
-			YX_PwmOut.YX_Pwm4BVv = 0;
 		}
 	}
 
 	os.PWM_OSHandle->YTm_Pwm4PdVv = YX_PwmOut.YTm_Pwm4PdVv;
 	os.PWM_OSHandle->YX_Pwm4AVv = YX_PwmOut.YX_Pwm4AVv;
-	os.PWM_OSHandle->YX_Pwm4BVv = YX_PwmOut.YX_Pwm4BVv;
 }
 
 void protect(void)
 {
-	//
-
-	//
-
-	//
-
-	//L_IAOI
+	//UDCOV
+	if (XX_UIIn.XUFt_UDC > XX_Pro.PU_UDCOVL)
+	{
+		if (XX_Pro.Cnt_UDCOV > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCOV = 1;
+		else
+			XX_Pro.Cnt_UDCOV++;
+	}
+	else
+		XX_Pro.Cnt_UDCOV = 0;
+	//UDCLV
+	if ((XX_UIIn.XUFt_UDC < XX_Pro.PU_UDCLVL)&&(SX_Run == 1))
+	{
+		if (XX_Pro.Cnt_UDCLV > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCLV = 1;
+		else
+			XX_Pro.Cnt_UDCLV++;
+	}
+	else
+		XX_Pro.Cnt_UDCLV = 0;
+	//IDCOI
+	if (fabs(XX_UIIn.XIFt_IDC) > XX_Pro.PI_IDCOIL)
+	{
+		if (XX_Pro.Cnt_IDCOI > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCOI = 1;
+		else
+			XX_Pro.Cnt_IDCOI++;
+	}
+	else
+		XX_Pro.Cnt_IDCOI = 0;
+	//IAOI
 	if (fabs(XX_UIIn.XIFt_IA) > XX_Pro.PI_IAOIL)
 	{
 		if (XX_Pro.Cnt_IAOI > 3)
@@ -888,7 +989,7 @@ void protect(void)
 	}
 	else
 		XX_Pro.Cnt_IAOI = 0;
-	//
+	//IBOI
 	if (fabs(XX_UIIn.XIFt_IB) > XX_Pro.PI_IBOIL)
 	{
 		if (XX_Pro.Cnt_IBOI > 3)
@@ -898,7 +999,7 @@ void protect(void)
 	}
 	else
 		XX_Pro.Cnt_IBOI = 0;
-	//
+	//ICOI
 	if (fabs(XX_UIIn.XIFt_IC) > XX_Pro.PI_ICOIL)
 	{
 		if (XX_Pro.Cnt_ICOI > 3)
@@ -908,21 +1009,23 @@ void protect(void)
 	}
 	else
 		XX_Pro.Cnt_ICOI = 0;
+	//IUB
 
-	//
+	//PH
 
-	//
-
-	//
-
-
-	//
-	if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
-			|| (os.ERR_DSPHandle->ERR_DSP3.all))
+	//SpdO
+	if (XX_SpdDrIn.XVFt_Spd1 > XX_Pro.PX_SpdOL)
 	{
-		M_CvSo();
-		os.STA_OUTHandle->DSPSt = FltStt;
+		if (XX_Pro.Cnt_SpdO > 3)
+			os.ERR_DSPHandle->ERR_DSP3.bit.L_SpdO = 1;
+		else
+			XX_Pro.Cnt_SpdO++;
 	}
+	else
+		XX_Pro.Cnt_SpdO = 0;
+
+
+
 }
 
 void SaSoCv(void)
@@ -932,9 +1035,11 @@ void SaSoCv(void)
 			|| (os.STA_OUTHandle->DSPSt == TqOut))
 	{
 		M_CvSa();
+		SX_Run = 1;
 	}
 	else
 	{
 		M_CvSo();
+		SX_Run = 0;
 	}
 }
