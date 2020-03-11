@@ -554,7 +554,6 @@ void INT_RTOS(void)
 		state_machine();
 		SaSoCv();
 		chopper();
-//		protect();
 	}
 }
 
@@ -563,6 +562,7 @@ void INT_PWM(void)
 	if (NX_DSPSt >= ChpIniFn)
 	{
 		input();
+		protect();
 		CvControl();
 		ouput();
 	}
@@ -812,6 +812,17 @@ void InitApp(void)
 		*(ptr + i) = 0;
 	}
 	os.STA_OUTHandle->DSPSt = DSPIni;
+
+	//----------------------------------------------
+	ptr = (Uint16*)&XX_UIIn;
+	for(i = 0;i<sizeof(XX_UIInStc_t);i++){
+		*(ptr + i) = 0;
+	}
+
+	ptr = (Uint16*)&XX_SpdDrIn;
+	for(i = 0;i<sizeof(XX_SpdDrInStc_t);i++){
+		*(ptr + i) = 0;
+	}
 
 	ptr = (Uint16*)&CvCtrl;
 	for(i = 0;i<sizeof(CvCtrl_Obj);i++){
