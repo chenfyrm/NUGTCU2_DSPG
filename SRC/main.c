@@ -323,7 +323,8 @@ void ADC_Process(void)
 	AI[14] = AD_CH[3] * 0.01;
 
 	AI[15] = AI[15] * 0.9 + ((float32)AD_CH[4] * 0.0469515 * 0.1 * CUST_MCU_PAR[7] * 0.00016667);//Idc
-	AI[16] = AI[16] * 0.9 + ((float32)AD_CH[5] * 0.0914412 * 0.1 * CUST_MCU_PAR[8] * 0.00025);//Udc
+//	AI[16] = AI[16] * 0.9 + ((float32)AD_CH[5] * 0.0914412 * 0.1 * CUST_MCU_PAR[8] * 0.00025);//Udc
+	AI[16] = AI[16] * 0.9 + ((float32)AD_CH[5] * 0.0469515 * 0.1 * CUST_MCU_PAR[8] * 0.000025);//Udc 2000V/50mA 40000:1
 
 	AI[17] = AD_CH[6] * 0.01;//Udc+ref
 	AI[18] = AD_CH[7] * 0.01;//EF+ref

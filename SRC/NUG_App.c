@@ -7,6 +7,7 @@
 
 // **************************************************************************
 // the includes
+
 #include	"module.h"
 #include	"DSP2833x_NUG_App.h"
 
@@ -58,7 +59,7 @@
 
 //===========================CvSaSo======================================
 //#define  M_CvSa()		(os.DO_OSHandle->DO1.bit.L_InvEn = 1)
-//#define	 M_CvSo()       (os.DO_OSHandle->DO1.bit.L_InvEn = 0)
+//#define  M_CvSo()     (os.DO_OSHandle->DO1.bit.L_InvEn = 0)
 
 //======================================================================
 #define	M_SetFlag(x)		(flag[(x & 0xF0)>>4] |= (((Uint16)0x0001)<<(x & 0x0F)))
@@ -334,46 +335,47 @@ typedef struct _CUST_MCU_PAR_Obj_
 {
 	Uint16 rsvd1[31];   //底层用
 	Uint16 MCUTxPar[60];   //低8位有效
+	Uint16 rsvd2[9];
 } CUST_MCU_PAR_Obj, *CUST_MCU_PAR_Handle;
 
 typedef struct _CUST_MCU_1ms_Obj_
 {
-	Uint16 MCUTxPar[20];   //低8位有效
+	Uint16 MCUTxVar[20];   //低8位有效
 } CUST_MCU_1ms_Obj, *CUST_MCU_1ms_Handle;
 
 typedef struct _CUST_MCU_2ms_Obj_
 {
-	Uint16 MCUTxPar[40];   //低8位有效
+	Uint16 MCUTxVar[40];   //低8位有效
 } CUST_MCU_2ms_Obj, *CUST_MCU_2ms_Handle;
 
 typedef struct _CUST_MCU_16ms_Obj_
 {
-	Uint16 MCUTxPar[40];   //低8位有效
+	Uint16 MCUTxVar[40];   //低8位有效
 } CUST_MCU_16ms_Obj, *CUST_MCU_16ms_Handle;
 
 typedef struct _CUST_MCU_64ms_Obj_
 {
-	Uint16 MCUTxPar[40];   //低8位有效
+	Uint16 MCUTxVar[40];   //低8位有效
 } CUST_MCU_64ms_Obj, *CUST_MCU_64ms_Handle;
 
 typedef struct _CUST_DSP_1ms_Obj_
 {
-	Uint16 DSPTxPar[20];   //低8位有效
+	Uint16 DSPTxVar[20];   //低8位有效
 } CUST_DSP_1ms_Obj, *CUST_DSP_1ms_Handle;
 
 typedef struct _CUST_DSP_2ms_Obj_
 {
-	Uint16 DSPTxPar[40];   //低8位有效
+	Uint16 DSPTxVar[40];   //低8位有效
 } CUST_DSP_2ms_Obj, *CUST_DSP_2ms_Handle;
 
 typedef struct _CUST_DSP_16ms_Obj_
 {
-	Uint16 DSPTxPar[40];   //低8位有效
+	Uint16 DSPTxVar[40];   //低8位有效
 } CUST_DSP_16ms_Obj, *CUST_DSP_16ms_Handle;
 
 typedef struct _CUST_DSP_64ms_Obj_
 {
-	Uint16 DSPTxPar[40];   //低8位有效
+	Uint16 DSPTxVar[40];   //低8位有效
 } CUST_DSP_64ms_Obj, *CUST_DSP_64ms_Handle;
 
 typedef struct _OS_Obj_
@@ -395,11 +397,11 @@ typedef struct _OS_Obj_
 	CUST_MCU_2ms_Handle CUST_MCU_2msHandle;
 	CUST_MCU_16ms_Handle CUST_MCU_16msHandle;
 	CUST_MCU_64ms_Handle CUST_MCU_64msHandle;
+
 	CUST_DSP_1ms_Handle CUST_DSP_1msHandle;
 	CUST_DSP_2ms_Handle CUST_DSP_2msHandle;
 	CUST_DSP_16ms_Handle CUST_DSP_16msHandle;
 	CUST_DSP_64ms_Handle CUST_DSP_64msHandle;
-
 } OS_Obj, *OS_Handle;
 
 //---------------------------------------------------------
@@ -1046,7 +1048,14 @@ void CvControl(void)
 	CvCtrl.CmdTq = hstida.CTq_TQ;
 	CvCtrl.SpDir = XX_SpdDrIn.SX_MotDir_Flt;
 
-	RAMP2(&frq, 50.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+	if(SX_Run == 1)
+	{
+		RAMP2(&frq, 50.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+	}
+	else
+	{
+		RAMP2(&frq, 0.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+	}
 	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxPar[0] & 0x00FF) * 10.0;
 	U3PhLdRef = Limit(U3PhLdRef, 0.0, 380.0);
 	U3PhAbs = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
@@ -1123,15 +1132,15 @@ void protect(void)
 	else
 		XX_Pro.Cnt_UDCOV = 0;
 	//UDCLV
-	if ((XX_UIIn.XUFt_UDC < XX_Pro.PU_UDCLVL) && (SX_Run == 1))
-	{
-		if (XX_Pro.Cnt_UDCLV > 3)
-			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCLV = 1;
-		else
-			XX_Pro.Cnt_UDCLV++;
-	}
-	else
-		XX_Pro.Cnt_UDCLV = 0;
+//	if ((XX_UIIn.XUFt_UDC < XX_Pro.PU_UDCLVL) && (SX_Run == 1))
+//	{
+//		if (XX_Pro.Cnt_UDCLV > 3)
+//			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCLV = 1;
+//		else
+//			XX_Pro.Cnt_UDCLV++;
+//	}
+//	else
+//		XX_Pro.Cnt_UDCLV = 0;
 	//IDCOI
 	if (fabs(XX_UIIn.XIFt_IDC) > XX_Pro.PI_IDCOIL)
 	{
@@ -1242,6 +1251,26 @@ void HSTIDA(void)
 
 void HSTODA(void)
 {
+	//---------------------------CUST_DSP_1ms[20]-------------------------------------------
+	os.CUST_DSP_1msHandle->DSPTxPar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxPar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>>8;
 
+	os.CUST_DSP_1msHandle->DSPTxPar[2] = (os.ERR_DSPHandle->ERR_DSP2.all & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxPar[3] = (os.ERR_DSPHandle->ERR_DSP2.all & 0xff00)>>8;
+
+	os.CUST_DSP_1msHandle->DSPTxPar[4] = (os.ERR_DSPHandle->ERR_DSP3.all & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxPar[5] = (os.ERR_DSPHandle->ERR_DSP3.all & 0xff00)>>8;
+
+	os.CUST_DSP_1msHandle->DSPTxPar[6] = (os.PWM_OSHandle->YTm_PwmPdVv & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxPar[7] = (os.PWM_OSHandle->YTm_PwmPdVv & 0xff00)>>8;
+
+	os.CUST_DSP_1msHandle->DSPTxPar[8] = (os.PWM_OSHandle->YX_Pwm1AVv & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxPar[9] = (os.PWM_OSHandle->YX_Pwm1AVv & 0xff00)>>8;
+
+	os.CUST_DSP_1msHandle->DSPTxPar[10] = ((Uint16)frq & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxPar[11] = ((Uint16)frq & 0xff00)>>8;
+
+
+	//---------------------------CUST_DSP_2ms[40]-------------------------------------------
 }
 
