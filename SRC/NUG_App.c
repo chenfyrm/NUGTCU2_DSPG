@@ -7,9 +7,8 @@
 
 // **************************************************************************
 // the includes
-#include	"DSP2833x_Device.h"
-#include	"DSP2833x_Examples.h"
-#include	"acm_dsp.h"
+#include	"module.h"
+#include	"DSP2833x_NUG_App.h"
 
 // **************************************************************************
 // the defines
@@ -569,6 +568,7 @@ volatile cfloat32 Udq, Uab;
 
 // **************************************************************************
 // the function prototypes
+
 void InitApp(void);
 void HSTPDA(void);
 
@@ -675,198 +675,199 @@ void state_machine(void)
 			}
 		}
 	}
-	else if (NX_DSPSt == DSPIniFn)	// DSP系统初始化完成
+	else if (NX_DSPSt == DSPIniFn)
 	{
-		if ((NX_MCUCmd & CtOp)||(NX_MCUCmd & CtOpHL)){
-		NX_DSPSt = DisChg;
-	}
-	else if(NX_MCUCmd&CvReSt)
-	{
-		NX_DSPSt=ChpIni;
-	}
-	else if(NX_MCUCmd&OvpTsEn)
-	{
-		NX_DSPSt = OVPTst;
-	}
-}
-else if(NX_DSPSt==OVPTst)	//OVP测试状态
-{
-	if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChg;	//放电状态
-	}
-	else if(SX_OvpTsOk==1)			//测试通过
-	{
-		NX_DSPSt=OVPTstFn;		//OVP完成
-		SX_OvpTsOk = 2;
-	}
-	else if(SX_OvpTsOk==0)		//测试未通过
-	{
-		NX_DSPSt = FltStt;
-		os.ERR_DSPHandle->ERR_DSP2.bit.L_OvpTst = 1;	//OVP test fail
-		SX_OvpTsOk = 2;
-	}
-}
-else if(NX_DSPSt==OVPTstFn)	//OVP测试完成状态
-{
-	if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChg;	//放电状态
-	}
-	else if(NX_MCUCmd&PrEtEn)	//收到MCU预励磁请求
-	{
-		NX_DSPSt=PreFlx;		//预励磁状态
-	}
-}
-else if(NX_DSPSt==PreFlx) //预励磁状态
-{
-	if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChg;
-	}
-	else if(NX_MCUCmd&mTqOutFn)
-	{
-		if(fabs(WM_TqCmd)<15)
+		if ((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))
 		{
-			NX_DSPSt=TqOutFn;
+			NX_DSPSt = DisChg;
+		}
+		else if(NX_MCUCmd&CvReSt)
+		{
+			NX_DSPSt=ChpIni;
+		}
+		else if(NX_MCUCmd&OvpTsEn)
+		{
+			NX_DSPSt = OVPTst;
 		}
 	}
-	else if(S_PreFlxFlg==1.0)   	// time counter done in MATLAB
+	else if(NX_DSPSt==OVPTst)	//OVP测试状态
 	{
-		NX_DSPSt = PreFlxFn;	//预励磁完成
-	}
-	else if(S_PreFlxFlg==0.0)
-	{
-		NX_DSPSt = FltStt;
-		os.ERR_DSPHandle->ERR_DSP2.bit.L_PreFlxSyn = 1;	//预励磁失败
-	}
-}
-else if(NX_DSPSt==PreFlxFn)					//系统运行
-{
-	if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChg;	//OVP测试状态
-	}
-	else if(NX_MCUCmd&mTqOutFn)
-	{
-		if(fabs(WM_TqCmd)<15)
+		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
-			NX_DSPSt=TqOutFn;
+			NX_DSPSt = DisChg;	//放电状态
+		}
+		else if(SX_OvpTsOk==1)			//测试通过
+		{
+			NX_DSPSt=OVPTstFn;		//OVP完成
+			SX_OvpTsOk = 2;
+		}
+		else if(SX_OvpTsOk==0)		//测试未通过
+		{
+			NX_DSPSt = FltStt;
+			os.ERR_DSPHandle->ERR_DSP2.bit.L_OvpTst = 1;	//OVP test fail
+			SX_OvpTsOk = 2;
 		}
 	}
-	else if(NX_MCUCmd&TqOutEn)   	// time counter done in MATLAB
+	else if(NX_DSPSt==OVPTstFn)	//OVP测试完成状态
 	{
-		NX_DSPSt = TqOut;	//
-	}
-}
-else if(NX_DSPSt==TqOut)					//转矩输出
-{
-	if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChg;
-	}
-	else if(NX_MCUCmd&mTqOutFn)
-	{
-		if(fabs(WM_TqCmd)<15)
+		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
-			NX_DSPSt=TqOutFn;
+			NX_DSPSt = DisChg;	//放电状态
+		}
+		else if(NX_MCUCmd&PrEtEn)	//收到MCU预励磁请求
+		{
+			NX_DSPSt=PreFlx;		//预励磁状态
 		}
 	}
-}
-else if(NX_DSPSt==TqOutFn)		//转矩输出结束
-{
-	if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
+	else if(NX_DSPSt==PreFlx) //预励磁状态
 	{
-		NX_DSPSt = DisChg;
+		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
+		{
+			NX_DSPSt = DisChg;
+		}
+		else if(NX_MCUCmd&mTqOutFn)
+		{
+			if(fabs(WM_TqCmd)<15)
+			{
+				NX_DSPSt=TqOutFn;
+			}
+		}
+		else if(S_PreFlxFlg==1.0)   	// time counter done in MATLAB
+		{
+			NX_DSPSt = PreFlxFn;	//预励磁完成
+		}
+		else if(S_PreFlxFlg==0.0)
+		{
+			NX_DSPSt = FltStt;
+			os.ERR_DSPHandle->ERR_DSP2.bit.L_PreFlxSyn = 1;	//预励磁失败
+		}
 	}
-	else if(NX_MCUCmd&CvStAg)
+	else if(NX_DSPSt==PreFlxFn)					//系统运行
 	{
-		NX_DSPSt=DSPIniFn;
+		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
+		{
+			NX_DSPSt = DisChg;	//OVP测试状态
+		}
+		else if(NX_MCUCmd&mTqOutFn)
+		{
+			if(fabs(WM_TqCmd)<15)
+			{
+				NX_DSPSt=TqOutFn;
+			}
+		}
+		else if(NX_MCUCmd&TqOutEn)   	// time counter done in MATLAB
+		{
+			NX_DSPSt = TqOut;	//
+		}
 	}
-	else if(NX_MCUCmd&CvSpFg)
+	else if(NX_DSPSt==TqOut)					//转矩输出
 	{
-		NX_DSPSt=OVPTstFn;
+		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
+		{
+			NX_DSPSt = DisChg;
+		}
+		else if(NX_MCUCmd&mTqOutFn)
+		{
+			if(fabs(WM_TqCmd)<15)
+			{
+				NX_DSPSt=TqOutFn;
+			}
+		}
 	}
-	else if(NX_MCUCmd&PrEtEn)
+	else if(NX_DSPSt==TqOutFn)		//转矩输出结束
 	{
-		NX_DSPSt=PreFlx;
+		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
+		{
+			NX_DSPSt = DisChg;
+		}
+		else if(NX_MCUCmd&CvStAg)
+		{
+			NX_DSPSt=DSPIniFn;
+		}
+		else if(NX_MCUCmd&CvSpFg)
+		{
+			NX_DSPSt=OVPTstFn;
+		}
+		else if(NX_MCUCmd&PrEtEn)
+		{
+			NX_DSPSt=PreFlx;
+		}
 	}
-}
-else if(NX_DSPSt==DisChg)	//放电
-{
-	if(SX_DisChgOK==1)
+	else if(NX_DSPSt==DisChg)	//放电
 	{
-		NX_DSPSt=DisChgFn;
-		SX_DisChgOK=2;
+		if(SX_DisChgOK==1)
+		{
+			NX_DSPSt=DisChgFn;
+			SX_DisChgOK=2;
+		}
+		else if(SX_DisChgOK==0)
+		{
+			NX_DSPSt = FltStt;
+			os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg = 1;
+			SX_DisChgOK=2;
+		}
 	}
-	else if(SX_DisChgOK==0)
+	else if(NX_DSPSt==DisChgFn)             //放电完成
+	{
+		if((NX_MCUCmd&CvSpFn)||(NX_MCUCmd&CvStAg))
+		{
+			NX_DSPSt=DSPIniFn;
+		}
+	}
+	else if(NX_DSPSt==FltStt)             //故障
+	{
+		if((os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 1)&&(NX_MCUCmd&CtOpHL)) //收到MCU放电请求，接触器断开了
+		{
+			NX_DSPSt = DisChgFn;	//
+			os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg = 0;
+		}
+		else if(((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))&&(os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 0))//收到MCU放电请求，接触器断开了
+		{
+			NX_DSPSt = DisChg;	//
+			os.ERR_DSPHandle->ERR_DSP2.bit.L_PreFlxSyn=0;
+			os.ERR_DSPHandle->ERR_DSP2.bit.L_OvpTst=0;
+			//			S_FltSt1.all=0;
+		}
+		else if((NX_MCUCmd&mTqOutFn)&&(os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 0))
+		{
+			NX_DSPSt=TqOutFn;
+			//			S_FltSt1.all=0;
+		}
+		else if(NX_MCUCmd&CvReSt)
+		{
+			NX_DSPSt=ChpIni;
+		}
+	}
+	else
+	{
+		os.ERR_DSPHandle->ERR_DSP2.bit.L_Stt = 1;
+	}
+
+	//
+	if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
+			|| (os.ERR_DSPHandle->ERR_DSP3.all))
 	{
 		NX_DSPSt = FltStt;
-		os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg = 1;
-		SX_DisChgOK=2;
 	}
-}
-else if(NX_DSPSt==DisChgFn)             //放电完成
-{
-	if((NX_MCUCmd&CvSpFn)||(NX_MCUCmd&CvStAg))
-	{
-		NX_DSPSt=DSPIniFn;
-	}
-}
-else if(NX_DSPSt==FltStt)             //故障
-{
-	if((os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 1)&&(NX_MCUCmd&CtOpHL)) //收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChgFn;	//
-		os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg = 0;
-	}
-	else if(((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))&&(os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 0))//收到MCU放电请求，接触器断开了
-	{
-		NX_DSPSt = DisChg;	//
-		os.ERR_DSPHandle->ERR_DSP2.bit.L_PreFlxSyn=0;
-		os.ERR_DSPHandle->ERR_DSP2.bit.L_OvpTst=0;
-		//			S_FltSt1.all=0;
-	}
-	else if((NX_MCUCmd&mTqOutFn)&&(os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 0))
-	{
-		NX_DSPSt=TqOutFn;
-		//			S_FltSt1.all=0;
-	}
-	else if(NX_MCUCmd&CvReSt)
-	{
-		NX_DSPSt=ChpIni;
-	}
-}
-else
-{
-	os.ERR_DSPHandle->ERR_DSP2.bit.L_Stt = 1;
-}
 
-//
-if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
-		|| (os.ERR_DSPHandle->ERR_DSP3.all))
-{
-	NX_DSPSt = FltStt;
-}
+	//reset fault
+	if(NX_MCUCmd&DspClr)
+	{
+		os.ERR_DSPHandle->ERR_DSP2.all=0;
+		os.ERR_DSPHandle->ERR_DSP3.all=0;
+	}
 
-//reset fault
-if(NX_MCUCmd&DspClr)
-{
-	os.ERR_DSPHandle->ERR_DSP2.all=0;
-	os.ERR_DSPHandle->ERR_DSP3.all=0;
-}
-
-//
-if ((os.STA_OUTHandle->DSPSt == PreFlx)
-		|| (os.STA_OUTHandle->DSPSt == PreFlxFn)
-		|| (os.STA_OUTHandle->DSPSt == TqOut))
-{
-	SX_Run = 1;
-}
-else
-{
-	SX_Run = 0;
-}
+	//
+	if ((os.STA_OUTHandle->DSPSt == PreFlx)
+			|| (os.STA_OUTHandle->DSPSt == PreFlxFn)
+			|| (os.STA_OUTHandle->DSPSt == TqOut))
+	{
+		SX_Run = 1;
+	}
+	else
+	{
+		SX_Run = 0;
+	}
 }
 
 void InitApp(void)
@@ -979,13 +980,13 @@ void sample_input(void)
 
 void pwm_ouput(void)
 {
-//	if(1.0 == CvCtrl.Duty[1]){
-//		YX_PwmOut.YX_PwmMo = 21;
-//	}
-//	else
-//	{
-//		YX_PwmOut.YX_PwmMo = 0;
-//	}
+	//	if(1.0 == CvCtrl.Duty[1]){
+	//		YX_PwmOut.YX_PwmMo = 21;
+	//	}
+	//	else
+	//	{
+	//		YX_PwmOut.YX_PwmMo = 0;
+	//	}
 
 	if (YX_PwmOut.YX_PwmMo == 21)
 	{
@@ -1011,15 +1012,15 @@ void pwm_ouput(void)
 		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv * CvCtrl.Duty[4];
 	}
 
-//	if(YX_PwmOut.YX_PwmMo == 21){
-//		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-0.2);
-//		YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-0.3);
-//		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-0.4);
-//	}else{
-//		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*0.2;
-//		YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*0.3;
-//		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*0.4;
-//	}
+	//	if(YX_PwmOut.YX_PwmMo == 21){
+	//		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-0.2);
+	//		YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-0.3);
+	//		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*(1.0-0.4);
+	//	}else{
+	//		YX_PwmOut.YX_Pwm1AVv = YX_PwmOut.YTm_PwmPdVv*0.2;
+	//		YX_PwmOut.YX_Pwm2AVv = YX_PwmOut.YTm_PwmPdVv*0.3;
+	//		YX_PwmOut.YX_Pwm3AVv = YX_PwmOut.YTm_PwmPdVv*0.4;
+	//	}
 
 	os.PWM_OSHandle->YX_PwmMo = YX_PwmOut.YX_PwmMo;
 	os.PWM_OSHandle->YTm_PwmPdVv = YX_PwmOut.YTm_PwmPdVv;
@@ -1027,11 +1028,11 @@ void pwm_ouput(void)
 	os.PWM_OSHandle->YX_Pwm2AVv = YX_PwmOut.YX_Pwm2AVv;
 	os.PWM_OSHandle->YX_Pwm3AVv = YX_PwmOut.YX_Pwm3AVv;
 
-//	os.PWM_OSHandle->YX_PwmMo = 0;
-//	os.PWM_OSHandle->YTm_PwmPdVv = YX_PwmOut.YTm_PwmPdVv;
-//	os.PWM_OSHandle->YX_Pwm1AVv = 0.2*YX_PwmOut.YTm_PwmPdVv;
-//	os.PWM_OSHandle->YX_Pwm2AVv = 0.3*YX_PwmOut.YTm_PwmPdVv;
-//	os.PWM_OSHandle->YX_Pwm3AVv = 0.4*YX_PwmOut.YTm_PwmPdVv;
+	//	os.PWM_OSHandle->YX_PwmMo = 0;
+	//	os.PWM_OSHandle->YTm_PwmPdVv = YX_PwmOut.YTm_PwmPdVv;
+	//	os.PWM_OSHandle->YX_Pwm1AVv = 0.2*YX_PwmOut.YTm_PwmPdVv;
+	//	os.PWM_OSHandle->YX_Pwm2AVv = 0.3*YX_PwmOut.YTm_PwmPdVv;
+	//	os.PWM_OSHandle->YX_Pwm3AVv = 0.4*YX_PwmOut.YTm_PwmPdVv;
 }
 
 void CvControl(void)
@@ -1049,7 +1050,7 @@ void CvControl(void)
 	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxPar[0] & 0x00FF) * 10.0;
 	U3PhLdRef = Limit(U3PhLdRef, 0.0, 380.0);
 	U3PhAbs = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
-			* SQRT2bySQRT3 * 1.684;
+					* SQRT2bySQRT3 * 1.684;
 
 	MRef = U3PhAbs / XX_UIIn.XUFt_UDC;
 	MRef = OvMd(MRef);
@@ -1101,7 +1102,7 @@ void chopper(void)
 		else if (XX_UIIn.XUFt_UDC < 1700)
 		{
 			YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
-//			YX_PwmOut.YX_Pwm4AVv = 0;
+			//			YX_PwmOut.YX_Pwm4AVv = 0;
 		}
 	}
 
@@ -1189,51 +1190,53 @@ void protect(void)
 
 /*
  * 	Uint16 NX_MtNo;
-	float32 PUi_Np;
-	float32 PFt_Lm;
-	float32 PFt_Ls;
-	float32 PFt_Lr;
+ float32 PUi_Np;
+ float32 PFt_Lm;
+ float32 PFt_Ls;
+ float32 PFt_Lr;
 
-	float32 PFt_Rs;
-	float32 PFt_Rr;
-	float32 PFt_Id_Nom;
-	float32 PFt_IMot_Max;
-	float32 PFt_FMot_Nom;
+ float32 PFt_Rs;
+ float32 PFt_Rr;
+ float32 PFt_Id_Nom;
+ float32 PFt_IMot_Max;
+ float32 PFt_FMot_Nom;
 
-	float32 PFt_UDclk_Nom;
-	float32 PFt_IDclk_Nom;
-	float32 PFt_IAC_Nom;
-	float32 NX_SpdOrTq;	//电机控制模式
-	float32 WX_CpDrt;	//斩波占空比
+ float32 PFt_UDclk_Nom;
+ float32 PFt_IDclk_Nom;
+ float32 PFt_IAC_Nom;
+ float32 NX_SpdOrTq;	//电机控制模式
+ float32 WX_CpDrt;	//斩波占空比
 
-	float32 PR_BrRs;
-	float32 PTm_BrRsDp;
-	float32 PK_BrRs;
-	float32 PX_BrRsTpCft;
-	float32 PR_DcNd;
+ float32 PR_BrRs;
+ float32 PTm_BrRsDp;
+ float32 PK_BrRs;
+ float32 PX_BrRsTpCft;
+ float32 PR_DcNd;
 
-	float32 PTm_DcNdDp;
-	float32 PK_DcNd;
-	float32 PX_DcNdTpCft;
-	float32 PX_SpdLoKp;
-	float32 PX_SpdLoKi;
+ float32 PTm_DcNdDp;
+ float32 PK_DcNd;
+ float32 PX_DcNdTpCft;
+ float32 PX_SpdLoKp;
+ float32 PX_SpdLoKi;
 
-	float32 PX_DclkFlt1;
-	float32 PX_DclkFlt2;
-	*/
+ float32 PX_DclkFlt1;
+ float32 PX_DclkFlt2;
+ */
 void HSTPDA(void)
 {
-	hstpda.NX_MtNo = os.CUST_MCU_PARHandle->MCUTxPar[0]&0xff;
-	hstpda.NX_Np = os.CUST_MCU_PARHandle->MCUTxPar[1]&0xff;
-	hstpda.PFt_Lm = (os.CUST_MCU_PARHandle->MCUTxPar[2]&0xff+(os.CUST_MCU_PARHandle->MCUTxPar[3]&0xff)>>8)*0.001;
-	hstpda.PFt_Ls = (os.CUST_MCU_PARHandle->MCUTxPar[4]&0xff+(os.CUST_MCU_PARHandle->MCUTxPar[5]&0xff)>>8)*0.001;
+	hstpda.NX_MtNo = os.CUST_MCU_PARHandle->MCUTxPar[0] & 0xff;
+	hstpda.NX_Np = os.CUST_MCU_PARHandle->MCUTxPar[1] & 0xff;
+	hstpda.PFt_Lm = (os.CUST_MCU_PARHandle->MCUTxPar[2]
+	                                                 & 0xff + (os.CUST_MCU_PARHandle->MCUTxPar[3] & 0xff) >> 8) * 0.001;
+	hstpda.PFt_Ls = (os.CUST_MCU_PARHandle->MCUTxPar[4]
+	                                                 & 0xff + (os.CUST_MCU_PARHandle->MCUTxPar[5] & 0xff) >> 8) * 0.001;
 
-//
+	//
 }
 
 void HSTIDA(void)
 {
-	hstida.CTq_TQ
+	//	hstida.CTq_TQ
 
 }
 
