@@ -153,6 +153,8 @@ interrupt void ScibRx_isr(void);
 //	extern void INIT_EV(void);
 	INIT_EV();
 
+//	STA_OUT[0] = 1;
+
 	while(1)
 	{ 	  					
 		Cycle_OS();		//app functions cycle

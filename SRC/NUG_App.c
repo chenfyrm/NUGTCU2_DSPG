@@ -49,7 +49,7 @@
 
 //========================flag==============================================
 //flag[0]
-#define SL_AppIniFn		0x00
+#define SL_DSPIniFn		0x00
 #define	SL_Run			0x01
 #define SL_PreFlxOk		0x02
 #define SL_DisChgOk		0x03
@@ -640,6 +640,7 @@ void Cycle_OS(void)
 	{
 		HSTPDA();
 		InitApp();
+		M_SetFlag(SL_DSPIniFn);
 	}
 
 	if (0 == (Cnt_RTOS % 5))
