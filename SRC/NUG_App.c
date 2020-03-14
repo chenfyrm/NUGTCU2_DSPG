@@ -49,7 +49,7 @@
 
 //========================flag==============================================
 //flag[0]
-#define SL_AppIni		0x00
+#define SL_AppIniFn		0x00
 #define	SL_Run			0x01
 #define SL_PreFlxOk		0x02
 #define SL_DisChgOk		0x03
@@ -443,21 +443,38 @@ typedef struct _HSTPDA_Obj_
 
 typedef struct _HSTIDA_Obj_
 {
+	//1ms
 	Uint16 NX_BusDir;
 	float32 XVFt_BusSpd;
 	Uint16 C_DIR;
 	float32 CTq_TQ;
 	float32 NXFt_Wgh;
 
-	float32 rsvd1;
-	float32 rsvd2;
-	float32 rsvd3;
-	float32 rsvd4;
-	float32 rsvd5;
+	Uint16 rsvd1[5];
+
+	//2ms
+	//	Uint16 rsvd2[20];
+
+	//16ms
+	//	Uint16 rsvd3[20];
+
+	//64ms
+	//	Uint16 rsvd4[20];
+
 } HSTIDA_Obj, *HSTIDA_Handle;
 
 typedef struct _HSTODA_Obj_
 {
+	//1ms
+	Uint16 BankCh1;
+	Uint16 BankCh2;
+	Uint16 BankCh3;
+	Uint16 BankCh4;
+	Uint16 BankCh5;
+	Uint16 BankCh6;
+	Uint16 rsvd1[4];
+
+	//2ms
 	float32 XP_In;
 	float32 XP_Out;
 	float32 XM_OutTq;
@@ -467,8 +484,13 @@ typedef struct _HSTODA_Obj_
 	float32 XIFt_IA_Rms;
 	float32 XIFt_IB_Rms;
 	float32 XIFt_IC_Rms;
-	float32 rsvd1;
-	float32 rsvd2;
+	//	Uint16 rsvd2[12];
+
+	//16ms
+	//	Uint16 rsvd3[20];
+
+	//64ms
+	//	Uint16 rsvd4[20];
 } HSTODA_Obj, *HSTODA_Handle;
 
 //---------------------------------------
@@ -614,14 +636,10 @@ void INIT_EV(void)
 
 void Cycle_OS(void)
 {
-	Cnt_RTOS++;
-	if (Cnt_RTOS >= 10)
-		Cnt_RTOS = 0;
-
 	if (NX_DSPSt == DSPIni)
 	{
-		InitApp();
 		HSTPDA();
+		InitApp();
 	}
 
 	if (0 == (Cnt_RTOS % 5))
@@ -631,8 +649,18 @@ void Cycle_OS(void)
 	}
 }
 
+/*
+ * 200usÖÐ¶Ï
+ *
+ *
+ *
+ * */
 void INT_RTOS(void)
 {
+	Cnt_RTOS++;
+	if (Cnt_RTOS >= 10)
+		Cnt_RTOS = 0;
+
 	state_machine();
 
 	if (NX_DSPSt >= DSPIniFn)
@@ -1056,10 +1084,10 @@ void CvControl(void)
 	{
 		RAMP2(&frq, 0.0, 0.001, 0.001, 0.0, FALSE, FALSE);
 	}
-	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxPar[0] & 0x00FF) * 10.0;
+	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
 	U3PhLdRef = Limit(U3PhLdRef, 0.0, 380.0);
 	U3PhAbs = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
-					* SQRT2bySQRT3 * 1.684;
+							* SQRT2bySQRT3 * 1.684;
 
 	MRef = U3PhAbs / XX_UIIn.XUFt_UDC;
 	MRef = OvMd(MRef);
@@ -1070,11 +1098,19 @@ void CvControl(void)
 	{
 		syntheta -= PI2;
 	}
+	else if (syntheta < 0.0)
+	{
+		syntheta += PI2;
+	}
 
 	Udq = POL2CPLX(MRef, 0.0);
 	Uab = CPLXMULT(Udq, POL2CPLX(1.0, syntheta)); //ipark
 
 	SVPWM(&CvCtrl.Duty[2], &CvCtrl.Duty[3], &CvCtrl.Duty[4], Uab);
+
+	CvCtrl.Duty[2] = Limit(CvCtrl.Duty[2],0.06,0.94);
+	CvCtrl.Duty[3] = Limit(CvCtrl.Duty[3],0.06,0.94);
+	CvCtrl.Duty[4] = Limit(CvCtrl.Duty[4],0.06,0.94);
 
 	if (frq >= 45.0)
 	{
@@ -1132,15 +1168,15 @@ void protect(void)
 	else
 		XX_Pro.Cnt_UDCOV = 0;
 	//UDCLV
-//	if ((XX_UIIn.XUFt_UDC < XX_Pro.PU_UDCLVL) && (SX_Run == 1))
-//	{
-//		if (XX_Pro.Cnt_UDCLV > 3)
-//			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCLV = 1;
-//		else
-//			XX_Pro.Cnt_UDCLV++;
-//	}
-//	else
-//		XX_Pro.Cnt_UDCLV = 0;
+	//	if ((XX_UIIn.XUFt_UDC < XX_Pro.PU_UDCLVL) && (SX_Run == 1))
+	//	{
+	//		if (XX_Pro.Cnt_UDCLV > 3)
+	//			os.ERR_DSPHandle->ERR_DSP3.bit.L_DCLV = 1;
+	//		else
+	//			XX_Pro.Cnt_UDCLV++;
+	//	}
+	//	else
+	//		XX_Pro.Cnt_UDCLV = 0;
 	//IDCOI
 	if (fabs(XX_UIIn.XIFt_IDC) > XX_Pro.PI_IDCOIL)
 	{
@@ -1245,32 +1281,69 @@ void HSTPDA(void)
 
 void HSTIDA(void)
 {
+	//1ms
+	//	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
 	//	hstida.CTq_TQ
+
+	//2ms
+	//	(os.CUST_MCU_2msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
+
+	//16ms
+	//	(os.CUST_MCU_16msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
+
+	//64ms
+	//	(os.CUST_MCU_64msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
 
 }
 
 void HSTODA(void)
 {
+	//	Uint16 i;
+	//	int16 *ptr;
+	//
+	//	hstoda.BankCh1 = (Uint16)os.STA_OUTHandle->DSPSt;
+	//	hstoda.BankCh2 = (Uint16)os.ERR_DSPHandle->ERR_DSP2.all;
+	//	hstoda.BankCh3 = (Uint16)os.ERR_DSPHandle->ERR_DSP3.all;
+	//	hstoda.BankCh4 = (Uint16)os.PWM_OSHandle->YTm_PwmPdVv;
+	//	hstoda.BankCh5 = (Uint16)os.PWM_OSHandle->YX_Pwm1AVv;
+	//	hstoda.BankCh6 = (Uint16)frq;
 	//---------------------------CUST_DSP_1ms[20]-------------------------------------------
-	os.CUST_DSP_1msHandle->DSPTxPar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
-	os.CUST_DSP_1msHandle->DSPTxPar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>>8;
+	//	ptr = (int16*)&hstoda;
+	//	for(i=0;i<10;i++)
+	//	{
+	//		os.CUST_DSP_1msHandle->DSPTxVar[i] = *(ptr + i) & 0x00ff;
+	//		os.CUST_DSP_1msHandle->DSPTxVar[i + 1] = *(ptr + i) & 0xff00>>8;
+	//	}
 
-	os.CUST_DSP_1msHandle->DSPTxPar[2] = (os.ERR_DSPHandle->ERR_DSP2.all & 0x00ff);
-	os.CUST_DSP_1msHandle->DSPTxPar[3] = (os.ERR_DSPHandle->ERR_DSP2.all & 0xff00)>>8;
+	os.CUST_DSP_1msHandle->DSPTxVar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxVar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>>8;
 
-	os.CUST_DSP_1msHandle->DSPTxPar[4] = (os.ERR_DSPHandle->ERR_DSP3.all & 0x00ff);
-	os.CUST_DSP_1msHandle->DSPTxPar[5] = (os.ERR_DSPHandle->ERR_DSP3.all & 0xff00)>>8;
+	os.CUST_DSP_1msHandle->DSPTxVar[2] = (os.ERR_DSPHandle->ERR_DSP2.all & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxVar[3] = (os.ERR_DSPHandle->ERR_DSP2.all & 0xff00)>>8;
 
-	os.CUST_DSP_1msHandle->DSPTxPar[6] = (os.PWM_OSHandle->YTm_PwmPdVv & 0x00ff);
-	os.CUST_DSP_1msHandle->DSPTxPar[7] = (os.PWM_OSHandle->YTm_PwmPdVv & 0xff00)>>8;
+	os.CUST_DSP_1msHandle->DSPTxVar[4] = (os.ERR_DSPHandle->ERR_DSP3.all & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxVar[5] = (os.ERR_DSPHandle->ERR_DSP3.all & 0xff00)>>8;
 
-	os.CUST_DSP_1msHandle->DSPTxPar[8] = (os.PWM_OSHandle->YX_Pwm1AVv & 0x00ff);
-	os.CUST_DSP_1msHandle->DSPTxPar[9] = (os.PWM_OSHandle->YX_Pwm1AVv & 0xff00)>>8;
+	os.CUST_DSP_1msHandle->DSPTxVar[6] = (os.PWM_OSHandle->YTm_PwmPdVv & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxVar[7] = (os.PWM_OSHandle->YTm_PwmPdVv & 0xff00)>>8;
 
-	os.CUST_DSP_1msHandle->DSPTxPar[10] = ((Uint16)frq & 0x00ff);
-	os.CUST_DSP_1msHandle->DSPTxPar[11] = ((Uint16)frq & 0xff00)>>8;
+	os.CUST_DSP_1msHandle->DSPTxVar[8] = (os.PWM_OSHandle->YX_Pwm1AVv & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxVar[9] = (os.PWM_OSHandle->YX_Pwm1AVv & 0xff00)>>8;
 
+	os.CUST_DSP_1msHandle->DSPTxVar[10] = ((Uint16)frq & 0x00ff);
+	os.CUST_DSP_1msHandle->DSPTxVar[11] = ((Uint16)frq & 0xff00)>>8;
 
 	//---------------------------CUST_DSP_2ms[40]-------------------------------------------
+	os.CUST_DSP_2msHandle->DSPTxVar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
+	os.CUST_DSP_2msHandle->DSPTxVar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>>8;
+
+	//----------------------------CUST_DSP_16ms[40]------------------------------------------------------
+	os.CUST_DSP_16msHandle->DSPTxVar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
+	os.CUST_DSP_16msHandle->DSPTxVar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>>8;
+
+	//----------------------------CUST_DSP_64ms[40]------------------------------------------------------
+	os.CUST_DSP_64msHandle->DSPTxVar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
+	os.CUST_DSP_64msHandle->DSPTxVar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>>8;
+
 }
 
