@@ -320,7 +320,6 @@ void ADC_Process(void)
 
 	AI[11] = -((float32)AD_CH[0] * 0.0914412 * CUST_MCU_PAR[5] * 0.00016667);//Ia//0.0304804
 	AI[12] = -((float32)AD_CH[1] * 0.0914412 * CUST_MCU_PAR[6] * 0.00016667);//Ib
-//	AI[2] = -(AI[0] + AI[1]);//Ic
 	AI[13] = AD_CH[2] * 0.01;
 	AI[14] = AD_CH[3] * 0.01;
 
@@ -353,15 +352,15 @@ void ADC_LS_IOB_Process(void)
    FPGA_WR[2] &= 0xFE;
    *(XintfZone7 + 1) = FPGA_WR[2];
 
-   SpiaRegs.SPITXBUF=0x8020;//spi璇诲彇鍛戒护,0閫氶亾
+   SpiaRegs.SPITXBUF=0x8020;//spi读取命令,0通道
    /*
    0b1000000000100000
-   绗浣0:澶栭儴鍙傝,1:鍐呴儴鍙傝锛屽綋鍓嶄负澶栭儴鍙傝
-   绗浣嶏紝0涓轰簩杩涘埗琛ョ爜锛锛氱洿鎺ヨ緭鍑轰簩杩涘埗锛屽綋鍓嶄负鐩存帴杈撳嚭浜岃繘鍒
-   绗绗浣嶏紝鐢垫簮妯″紡閫夋嫨锛屽綋鍓嶄负normal妯″紡
-   绗绗0浣嶏細閫夋嫨杈撳叆绠¤剼妯″紡锛屼緥8涓崟绔緭鍏ャ鍥涗釜鍏ㄥ樊鍒嗚緭鍏ャ鍥涗釜浼樊鍒嗚緭鍏ワ紝褰撳墠涓涓崟绔緭鍏
-   绗1鍒扮13浣嶏細閫夋嫨杞崲閫氶亾 000锛氶閬锛01锛氶閬锛10锛氶閬...褰撳墠閫夋嫨閫氶亾0
-   绗4鍒扮16浣嶏細璇诲彇鍛戒护
+	   第5位,0:外部参考,1:内部参考，当前为外部参考
+	   第6位，0为二进制补码，1：直接输出二进制，当前为直接输出二进制
+	   第7第8位，电源模式选择，当前为normal模式
+	   第9第10位：选择输入管脚模式，例8个单端输入、四个全差分输入、四个伪差分输入，当前为8个单端输入
+	   第11到第13位：选择转换通道 000：通道0，001：通道1，010：通道2...当前选择通道0
+	   第14到第16位：读取命令
    */
     // Wait until data is received
 //    while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
@@ -377,13 +376,13 @@ void ADC_LS_IOB_Process(void)
     FPGA_WR[2] &= 0xFE;
     *(XintfZone7 + 1) = FPGA_WR[2];
 
-    SpiaRegs.SPITXBUF=0x8420;//spi璇诲彇鍛戒护,1閫氶亾
+    SpiaRegs.SPITXBUF=0x8420;//spi读取命令,1通道
      //       SpiaRegs.SPITXBUF=0x009E;//0x5555;
     	     // Wait until data is received
 //    while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	while(SpiaRegs.SPIFFTX.bit.TXFFST !=0) {;}
     	     // Check against sent data
-    AD_CH[16] = SpiaRegs.SPIRXBUF;//璇诲彇0閫氶亾
+    AD_CH[16] = SpiaRegs.SPIRXBUF;//读取0通道
 
 //    DELAY_US(1L);
 
@@ -395,67 +394,67 @@ void ADC_LS_IOB_Process(void)
 	FPGA_WR[2] &= 0xFE;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 
-	SpiaRegs.SPITXBUF=0x8820;//spi璇诲彇鍛戒护,2閫氶亾
+	SpiaRegs.SPITXBUF=0x8820;//spi读取命令,2通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	while(SpiaRegs.SPIFFTX.bit.TXFFST !=0) {;}
 	// Check against sent data
-	AD_CH[17] = SpiaRegs.SPIRXBUF;//璇诲彇1閫氶亾
+	AD_CH[17] = SpiaRegs.SPIRXBUF;//读取1通道
 
 //	DELAY_US(10L);
 
-//	SpiaRegs.SPITXBUF=0x8C20;//spi璇诲彇鍛戒护,3閫氶亾
+//	SpiaRegs.SPITXBUF=0x8C20;//spi读取命令,3通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	// Check against sent data
-//	AD_CH[18] = SpiaRegs.SPIRXBUF;//璇诲彇2閫氶亾
+//	AD_CH[18] = SpiaRegs.SPIRXBUF;//读取2通道
 
 //	DELAY_US(10L);
 
-//	SpiaRegs.SPITXBUF=0x9020;//spi璇诲彇鍛戒护,4閫氶亾
+//	SpiaRegs.SPITXBUF=0x9020;//spi读取命令,4通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	// Check against sent data
-//	AD_CH[19] = SpiaRegs.SPIRXBUF;//璇诲彇3閫氶亾
+//	AD_CH[19] = SpiaRegs.SPIRXBUF;//读取3通道
 
 //	DELAY_US(10L);
 
-//	SpiaRegs.SPITXBUF=0x9420;//spi璇诲彇鍛戒护,5閫氶亾
+//	SpiaRegs.SPITXBUF=0x9420;//spi读取命令,5通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	// Check against sent data
-//	AD_CH[20] = SpiaRegs.SPIRXBUF;//璇诲彇4閫氶亾
+//	AD_CH[20] = SpiaRegs.SPIRXBUF;//读取4通道
 
 //	DELAY_US(10L);
 
-//	SpiaRegs.SPITXBUF=0x9820;//spi璇诲彇鍛戒护,6閫氶亾
+//	SpiaRegs.SPITXBUF=0x9820;//spi读取命令,6通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	// Check against sent data
-//	AD_CH[21] = SpiaRegs.SPIRXBUF;//璇诲彇5閫氶亾
+//	AD_CH[21] = SpiaRegs.SPIRXBUF;////读取5通道
 
 //	DELAY_US(10L);
 
-//	SpiaRegs.SPITXBUF=0x9C20;//spi璇诲彇鍛戒护,7閫氶亾
+//	SpiaRegs.SPITXBUF=0x9C20;//spi读取命令,7通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	// Check against sent data
-//	AD_CH[22] = SpiaRegs.SPIRXBUF;//璇诲彇6閫氶亾
+//	AD_CH[22] = SpiaRegs.SPIRXBUF;//读取6通道
 
 //	DELAY_US(10L);
 
-//	SpiaRegs.SPITXBUF=0x8020;//spi璇诲彇鍛戒护,0閫氶亾
+//	SpiaRegs.SPITXBUF=0x8020;//spi读取命令,0通道
 	//       SpiaRegs.SPITXBUF=0x009E;//0x5555;
 	// Wait until data is received
 //	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	// Check against sent data
-//	AD_CH[23] = SpiaRegs.SPIRXBUF;//璇诲彇7閫氶亾
+//	AD_CH[23] = SpiaRegs.SPIRXBUF;//读取7通道
 
     FPGA_WR[2] |= 0x01;
     *(XintfZone7 + 1) = FPGA_WR[2];
@@ -649,7 +648,7 @@ void SP_PRO(void)
 			Ro_SP01.pos_cur=EQep1Regs.QPOSLAT;                    // Latched POSCNT value
 			if (Ro_SP01.dir == 0x11)	
 			{
-				if (Ro_SP01.pos_cur > Ro_SP01.pos_pre)//閿熸枻鎷峰閿熻緝杈炬嫹璇撮敓鏂ゆ嫹閿熸枻鎷烽敓鍓夸紮鎷锋閿熸枻鎷烽敓?
+				if (Ro_SP01.pos_cur > Ro_SP01.pos_pre)//
 				{
 					Ro_SP01.pos_delta = Ro_SP01.pos_pre + 0xFFFFFFFF - Ro_SP01.pos_cur;
 				}
@@ -660,7 +659,7 @@ void SP_PRO(void)
 			}
 			else if (Ro_SP01.dir == 0x22)
 			{
-				if (Ro_SP01.pos_cur < Ro_SP01.pos_pre)//閿熸枻鎷峰閿熸枻鎷峰皬璇撮敓鏂ゆ嫹閿熸枻鎷烽敓鍓夸紮鎷锋閿熸枻鎷烽敓?
+				if (Ro_SP01.pos_cur < Ro_SP01.pos_pre)//
 				{
 					Ro_SP01.pos_delta = Ro_SP01.pos_cur + 0xFFFFFFFF - Ro_SP01.pos_pre;
 				}
@@ -688,7 +687,7 @@ void SP_PRO(void)
 	{
 		if(EQep1Regs.QEPSTS.bit.COEF == 0)// No Capture overflow
 		{
-			//閿熸枻鎷烽敓鑺ュ崟浣嶄綅閿熸枻鎷锋椂閿熸枻鎷烽敓鏂ゆ嫹閿
+			//
 			Ro_SP01.up_prd = ((float)EQep1Regs.QCPRDLAT) * 0.85333333;//QCK=128/150=0.853333us
 			Ro_SP01.omega_m_low = 750000 / Ro_SP01.up_prd;//Ro_SP01.omega_m_low * 0.99 +  * 0.01//2500,2^UPPS * 10^6 / 4 /Ro_SP01.up_prd /20,4 div frequency;
 		}
@@ -738,7 +737,7 @@ void SP_PRO(void)
 			Ro_SP02.pos_cur=EQep2Regs.QPOSLAT;                    // Latched POSCNT value
 			if (Ro_SP02.dir == 0x11)
 			{
-				if (Ro_SP02.pos_cur > Ro_SP02.pos_pre)//閿熸枻鎷峰閿熻緝杈炬嫹璇撮敓鏂ゆ嫹閿熸枻鎷烽敓鍓夸紮鎷锋閿熸枻鎷烽敓?
+				if (Ro_SP02.pos_cur > Ro_SP02.pos_pre)//
 				{
 					Ro_SP02.pos_delta = Ro_SP02.pos_pre + 0xFFFFFFFF - Ro_SP02.pos_cur;
 				}
@@ -749,7 +748,7 @@ void SP_PRO(void)
 			}
 			else if (Ro_SP02.dir == 0x22)
 			{
-				if (Ro_SP02.pos_cur < Ro_SP02.pos_pre)//閿熸枻鎷峰閿熸枻鎷峰皬璇撮敓鏂ゆ嫹閿熸枻鎷烽敓鍓夸紮鎷锋閿熸枻鎷烽敓?
+				if (Ro_SP02.pos_cur < Ro_SP02.pos_pre)//
 				{
 					Ro_SP02.pos_delta = Ro_SP02.pos_cur + 0xFFFFFFFF - Ro_SP02.pos_pre;
 				}
@@ -777,7 +776,7 @@ void SP_PRO(void)
 	{
 		if(EQep2Regs.QEPSTS.bit.COEF == 0)// No Capture overflow
 		{
-			//閿熸枻鎷烽敓鑺ュ崟浣嶄綅閿熸枻鎷锋椂閿熸枻鎷烽敓鏂ゆ嫹閿
+			//
 			Ro_SP02.up_prd = ((float)EQep2Regs.QCPRDLAT) * 0.85333333;//QCK=128/150=0.853333us
 			Ro_SP02.omega_m_low = 750000 / Ro_SP02.up_prd;//Ro_SP01.omega_m_low * 0.99 +  * 0.01//2500,2^UPPS * 10^6 / 4 /Ro_SP01.up_prd /20,4 div frequency;
 		}
@@ -1096,8 +1095,8 @@ void InitAD7606(void)
 //	GpioDataRegs.GPBCLEAR.bit.GPIO50=1;//OS0=0
 //	GpioDataRegs.GPBCLEAR.bit.GPIO51=1;//OS0=0
 //	GpioDataRegs.GPBCLEAR.bit.GPIO52=1;//OS0=0
-//Range is 閿熸枻鎷0V
-//	GpioDataRegs.GPBSET.bit.GPIO59=1;//1->閿熸枻鎷0V//Nonsense now
+
+//	GpioDataRegs.GPBSET.bit.GPIO59=1;//Nonsense now
 //Disable Standby
 //	GpioDataRegs.GPBSET.bit.GPIO53=1;//1->No Standby
 //Reset AD7606,Typically 50ns,here 100ns
@@ -1114,14 +1113,14 @@ void InitAD7606(void)
 	FPGA_WR[2] &= 0xFE;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 
-	SpiaRegs.SPITXBUF=0xAAA0;//spi鍒濆鍖栭厤缃弬鏁
+	SpiaRegs.SPITXBUF=0xAAA0;//spi初始化配置参数1
 	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	/*
-	0b1010101010100000 绗鍒扮5浣嶆棤鏁堜綅锛岀6鍒扮13浣嶄负閫氶亾0-3鐨勮寖鍥撮鎷绗4鍒扮16浣嶄负鍐欒寖鍥村瘎瀛樺櫒1鎸囦护锛01
-	渚嬬12銆佺13浣嶄负閫氶亾0鐨勮寖鍥撮鎷╅厤缃紝褰撳墠涓1 +-5V
-	00锛-10V
-	01锛-5V
-	10锛-2.5V
+	0b1010101010100000 第1到第5位无效位，第6到第13位为通道0-3的范围选择,第14到第16位为写范围寄存器1指令：101
+	例第12、第13位为通道0的范围选择配置，当前为01 +-5V
+	00：+-10V
+	01：+-5V
+	10：+-2.5V
 	11: 0-10V
 	*/
 	FPGA_WR[2] |= 0x01;
@@ -1132,14 +1131,14 @@ void InitAD7606(void)
 	FPGA_WR[2] &= 0xFE;
 	*(XintfZone7 + 1) = FPGA_WR[2];
 
-	SpiaRegs.SPITXBUF=0xCAA0;//spi鍒濆鍖栭厤缃弬鏁
+	SpiaRegs.SPITXBUF=0xCAA0;//spi初始化配置参数2
 	while(SpiaRegs.SPIFFRX.bit.RXFFST !=1) {;}
 	/*
-	0b1100101010100000 绗鍒扮5浣嶆棤鏁堜綅锛岀6鍒扮13浣嶄负閫氶亾4-7鐨勮寖鍥撮鎷╋紝绗4鍒扮16浣嶄负鍐欒寖鍥村瘎瀛樺櫒2鎸囦护锛10
-	渚嬬12銆佺13浣嶄负閫氶亾4鐨勮寖鍥撮鎷╅厤缃紝褰撳墠涓1 +-5V
-	00锛-10V
-	01锛-5V
-	10锛-2.5V
+	0b1100101010100000 第1到第5位无效位，第6到第13位为通道4-7的范围选择，第14到第16位为写范围寄存器2指令：110
+	例第12、第13位为通道4的范围选择配置，当前为01 +-5V
+	00：+-10V
+	01：+-5V
+	10：+-2.5V
 	11: 0-10V
 	*/
 	FPGA_WR[2] |= 0x01;
