@@ -714,7 +714,7 @@ void state_machine(void)
 	}
 	else if (NX_DSPSt == DSPIni)
 	{
-		if (M_SetFlag(SL_DspIniOk))
+		if (M_ChkFlag(SL_DspIniOk))
 		{
 				NX_DSPSt = DSPIniFn;		//DSP initialization finished
 				M_ClrFlag(SL_DspIniOk);
@@ -918,9 +918,9 @@ void state_machine(void)
 	if ((os.STA_OUTHandle->DSPSt == PreFlx)
 			|| (os.STA_OUTHandle->DSPSt == PreFlxFn)
 			|| (os.STA_OUTHandle->DSPSt == TqOut))
-		M_SetFlag(SL_Run);
+		M_SetFlag(SL_InvCtrl);
 	else
-		M_ClrFlag(SL_Run);
+		M_ClrFlag(SL_InvCtrl);
 
 }
 
@@ -1162,6 +1162,8 @@ void CvControl(void)
 
 	if (frq >= 45.0)
 		M_SetFlag(SL_PreFlxSynOk);
+
+	M_SetFlag(SL_TqXpZero);
 
 	CvCtrl.Duty[0] = 1.0 / 18.75e6 * ((Uint16) ((1.0 / 2700.0) * 18.75e6));
 	CvCtrl.Duty[1] = 1.0 - CvCtrl.Duty[1];
