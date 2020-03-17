@@ -19,7 +19,7 @@ extern float32 AI[30];
 extern Uint16 DI_OS[1];
 extern Uint16 CFG_IN[4];
 extern Uint16 STA_IN[8];
-extern Uint16 ERR_DSP[3];
+extern Uint16 ERR_DSP[7];
 extern Uint16 ERR_EXTR[3];
 
 extern Uint16 PWM_OS[11];
@@ -27,7 +27,7 @@ extern Uint16 DO_OS[1];
 extern Uint16 CFG_OUT[3];
 extern Uint16 STA_OUT[4];
 
-extern Uint16 CUST_MCU_PAR[60];
+extern Uint16 CUST_MCU_PAR[100];
 extern Uint16 CUST_MCU_1ms[20];
 extern Uint16 CUST_MCU_2ms[40];
 extern Uint16 CUST_MCU_16ms[40];
