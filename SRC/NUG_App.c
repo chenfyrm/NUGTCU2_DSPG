@@ -1122,6 +1122,7 @@ void CvControl(void)
 	{
 		RAMP2(&frq, 0.0, 0.001, 0.001, 0.0, FALSE, FALSE);
 	}
+
 	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
 	U3PhLdRef = Limit(U3PhLdRef, 0.0, 380.0);
 
