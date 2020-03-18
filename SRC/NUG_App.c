@@ -128,10 +128,14 @@ typedef struct _AI_Obj_
 //---------------------------------DI_OS---------------------------------
 struct DI1_BITS
 {
-	Uint16 L_OptoFb :1;
-	Uint16 L_InvFb :1;
-	Uint16 L_ChpFb:1;
-	Uint16 rsvd :13;
+	Uint16 L_TracSafe:1;				//牵引安全信号  外部
+	Uint16 L_LineTrip:1;				//板载LineTrip
+	Uint16 L_OptoFb :1;				//Opto使能反馈
+	Uint16 L_PwmHwErr:1;			//PWM驱动板故障
+	Uint16 L_SysHwErr:1;				//系统硬件保护
+	Uint16 L_InvFb :1;					//逆变使能反馈
+	Uint16 L_ChpFb:1;					//斩波使能反馈
+	Uint16 rsvd :9;
 };
 union DI1_REG
 {
@@ -317,8 +321,8 @@ typedef struct _PWM_OS_Obj_
 //---------------------------------DO_OS---------------------------------
 struct DO1_BITS
 {
-	Uint16 L_InvEn :1;
-	Uint16 L_ChpEn:1;
+	Uint16 L_InvEn :1;					//光纤逆变使能指令
+	Uint16 L_ChpEn:1;					//光纤斩波使能指令
 	Uint16 rsvd :14;
 };
 union DO1_REG
@@ -461,6 +465,7 @@ typedef struct _HSTPDA_Obj_
 typedef struct _HSTIDA_Obj_
 {
 	//1ms
+	float32 HMI_rsvd;
 	Uint16 NX_BusDir;
 	float32 XVFt_BusSpd;
 	Uint16 C_DIR;
@@ -498,16 +503,23 @@ typedef struct _HSTODA_Obj_
 	float32 XH_BrRsTp_Est;
 	float32 XH_DcNdTp_Est;
 
-	float32 XIFt_IA_Rms;
-	float32 XIFt_IB_Rms;
-	float32 XIFt_IC_Rms;
-	float32 XIFt_IA_Avg;
+
+
 	//	Uint16 rsvd2[11];
 
 	//16ms
 	//	Uint16 rsvd3[20];
 
 	//64ms
+	float32 XIFt_IA_Avg;
+	float32 XIFt_IB_Avg;
+	float32 XIFt_IC_Avg;
+	float32 XIFt_IA_Rms;
+	float32 XIFt_IB_Rms;
+	float32 XIFt_IC_Rms;
+	float32 XIFt_IA_Sqr;
+	float32 XIFt_IB_Sqr;
+	float32 XIFt_IC_Sqr;
 	//	Uint16 rsvd4[20];
 } HSTODA_Obj, *HSTODA_Handle;
 
@@ -580,6 +592,9 @@ volatile HSTPDA_Obj hstpda;
 volatile HSTIDA_Obj hstida;
 volatile HSTODA_Obj hstoda;
 
+volatile Uint16 Cnt_RmsA = 0;
+volatile Uint16 Cnt_RmsB = 0;
+volatile Uint16 Cnt_RmsC = 0;
 //--------------------------------------
 volatile Uint16 Cnt_RTOS = 0;
 volatile Uint16 flag[16];
@@ -603,7 +618,8 @@ void HSTPDA(void);
 
 void sample_input(void);
 void protect(void);
-void CvControl(void);
+//void CvControl(void);
+void CvControlM(void);
 void pwm_ouput(void);
 
 void state_machine(void);
@@ -665,12 +681,7 @@ void Cycle_OS(void)
 //	}
 }
 
-/*
- * 200us中断
- *
- *
- *
- * */
+
 void INT_RTOS(void)
 {
 	Cnt_RTOS++;
@@ -679,21 +690,67 @@ void INT_RTOS(void)
 
 	state_machine();
 
-	 if (NX_DSPSt >= DSPIniFn){
-		 chopper();
-	 }
+//	if (NX_DSPSt >= DSPIniFn){
+//		M_ChpEn();
+//
+//		if(os.DI_OSHandle->DI1.bit.L_ChpFb)
+//			M_SetFlag(SL_ChpCtrl);
+//		else
+//			M_ClrFlag(SL_ChpCtrl);
+//
+//		chopper();
+//	}else
+//	{
+//		M_ChpBc();
+//		M_ClrFlag(SL_ChpCtrl);
+//	}
 }
 
 void INT_PWM(void)
 {
 	if (NX_DSPSt == DSPOptoTst)
+	{
+		M_InvEn();
+		M_ChpEn();
 		OptoTest();
+	}
 	else if (NX_DSPSt >= DSPIniFn)
 	{
+		//---------------------------------------
+		if (((NX_DSPSt == PreFlx) || (NX_DSPSt == PreFlxFn)
+				|| (NX_DSPSt == TqOut)) && os.DI_OSHandle->DI1.bit.L_OptoFb)
+			M_InvEn();
+		else
+			M_InvBc();
+
+		if ((os.DI_OSHandle->DI1.bit.L_OptoFb)
+				&& (os.DI_OSHandle->DI1.bit.L_InvFb))
+			M_SetFlag(SL_InvCtrl);
+		else
+			M_ClrFlag(SL_InvCtrl);
+
 		sample_input();
 		protect();
-		CvControl();
+//		CvControl();
+		CvControlM();
 		pwm_ouput();
+
+		//---------------------------------------------
+		M_ChpEn();
+
+		if(os.DI_OSHandle->DI1.bit.L_ChpFb)
+			M_SetFlag(SL_ChpCtrl);
+		else
+			M_ClrFlag(SL_ChpCtrl);
+
+		chopper();
+	}
+	else
+	{
+		M_InvBc();
+		M_ClrFlag(SL_InvCtrl);
+		M_ChpBc();
+		M_ClrFlag(SL_ChpCtrl);
 	}
 }
 
@@ -788,7 +845,7 @@ void state_machine(void)
 			M_ClrFlag(SL_PreFlxSynFl);
 		}
 	}
-	else if(NX_DSPSt==PreFlxFn)					//系统运行
+	else if(NX_DSPSt==PreFlxFn)					//预励磁完成 系统运行
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
@@ -915,12 +972,12 @@ void state_machine(void)
 	}
 
 	//run flag
-	if ((os.STA_OUTHandle->DSPSt == PreFlx)
-			|| (os.STA_OUTHandle->DSPSt == PreFlxFn)
-			|| (os.STA_OUTHandle->DSPSt == TqOut))
-		M_SetFlag(SL_InvCtrl);
-	else
-		M_ClrFlag(SL_InvCtrl);
+//	if ((os.STA_OUTHandle->DSPSt == PreFlx)
+//			|| (os.STA_OUTHandle->DSPSt == PreFlxFn)
+//			|| (os.STA_OUTHandle->DSPSt == TqOut))
+//		M_SetFlag(SL_InvCtrl);
+//	else
+//		M_ClrFlag(SL_InvCtrl);
 
 }
 
@@ -1055,8 +1112,8 @@ void sample_input(void)
 	XX_UIIn.XUFt_UDC = os.AIHandle->XUFt_UDC1;
 	XX_UIIn.XUFt_U3Ph = os.AIHandle->XUFt_UPh;
 	XX_UIIn.XIFt_IDC = os.AIHandle->XIFt_IDC;
-	XX_UIIn.XIFt_IA = os.AIHandle->XIFt_I1 * 0.5 * (-1.0);
-	XX_UIIn.XIFt_IC = os.AIHandle->XIFt_I2 * 0.5 * (-1.0);
+	XX_UIIn.XIFt_IA = os.AIHandle->XIFt_I1 *  (-1.0);
+	XX_UIIn.XIFt_IC = os.AIHandle->XIFt_I2 *  (-1.0);
 	XX_UIIn.XIFt_IB = -XX_UIIn.XIFt_IA - XX_UIIn.XIFt_IC;
 
 	XX_SpdDrIn.XVFt_Spd1 = os.AIHandle->XVFt_Spd1;
@@ -1065,8 +1122,20 @@ void sample_input(void)
 	XX_SpdDrIn.XVFt_Spd4 = os.AIHandle->XVFt_Spd4;
 	XX_SpdDrIn.SX_MotDir_Flt = ((Uint32) (os.AIHandle->NX_SpDir) & 0x0000FFFF);
 
-	LowPass(&hstoda.XIFt_IA_Avg, fabs(XX_UIIn.XIFt_IA),
-			CvCtrl.Duty[0] * PI2 * 1.0);		//一阶滤波 截止频率1Hz
+//	LowPass(&hstoda.XIFt_IA_Avg, fabs(XX_UIIn.XIFt_IA),
+//			CvCtrl.Duty[0] * PI2 * 1.0);		//一阶滤波 截止频率1Hz
+//	LowPass(&hstoda.XIFt_IB_Avg, fabs(XX_UIIn.XIFt_IB),
+//			CvCtrl.Duty[0] * PI2 * 1.0);		//一阶滤波 截止频率1Hz
+//	LowPass(&hstoda.XIFt_IC_Avg, fabs(XX_UIIn.XIFt_IC),
+//			CvCtrl.Duty[0] * PI2 * 1.0);		//一阶滤波 截止频率1Hz
+//
+//	hstoda.XIFt_IA_Rms = hstoda.XIFt_IA_Avg*PIby2SQRT2;//基波有效值
+//	hstoda.XIFt_IB_Rms = hstoda.XIFt_IB_Avg*PIby2SQRT2;//基波有效值
+//	hstoda.XIFt_IC_Rms = hstoda.XIFt_IC_Avg*PIby2SQRT2;//基波有效值
+
+	RmsClc(&hstoda.XIFt_IA_Rms,XX_UIIn.XIFt_IA,256,&hstoda.XIFt_IA_Sqr,&Cnt_RmsA);
+	RmsClc(&hstoda.XIFt_IB_Rms,XX_UIIn.XIFt_IB,256,&hstoda.XIFt_IB_Sqr,&Cnt_RmsB);
+	RmsClc(&hstoda.XIFt_IC_Rms,XX_UIIn.XIFt_IC,256,&hstoda.XIFt_IC_Sqr,&Cnt_RmsC);
 
 }
 
@@ -1103,70 +1172,163 @@ void pwm_ouput(void)
 	os.PWM_OSHandle->YX_Pwm3AVv = YX_PwmOut.YX_Pwm3AVv;
 }
 
-void CvControl(void)
-{
-	float32 U3PhLdRef;
+//void CvControl(void)
+//{
+//	float32 U3PhLdRef;
+//
+//	if (M_ChkFlag(SL_InvCtrl))
+//	{
+//		CvCtrl.Analog[0] = XX_UIIn.XIFt_IA;
+//		CvCtrl.Analog[1] = XX_UIIn.XIFt_IB;
+//		CvCtrl.Analog[2] = XX_UIIn.XUFt_UDC;
+//		CvCtrl.Analog[3] = XX_SpdDrIn.XVFt_Spd1;
+//		CvCtrl.CmdTq = hstida.CTq_TQ;
+//		CvCtrl.SpDir = XX_SpdDrIn.SX_MotDir_Flt;
+//
+//		U3PhLdRef = hstida.HMI_rsvd * 10.0;
 
-	CvCtrl.Analog[0] = XX_UIIn.XIFt_IA;
-	CvCtrl.Analog[1] = XX_UIIn.XIFt_IB;
-	CvCtrl.Analog[2] = XX_UIIn.XUFt_UDC;
-	CvCtrl.Analog[3] = XX_SpdDrIn.XVFt_Spd1;
-	CvCtrl.CmdTq = hstida.CTq_TQ;
-	CvCtrl.SpDir = XX_SpdDrIn.SX_MotDir_Flt;
+//		if(NX_DSPSt == PreFlx)
+//		{
+//			RAMP2(&frq, 50.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+//		}
+//		else if(NX_MCUCmd&mTqOutFn)
+//		{
+//			RAMP2(&frq, 0.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+//		}
+//
+
+//		U3PhLdRef = Limit(U3PhLdRef, 0.0, 380.0);
+//
+//		//	U3PhAbs = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
+//		//							* SQRT2bySQRT3 * 1.684;
+//		U3PhLdRef = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
+//									* SQRT2bySQRT3 * 1.684;
+//		RAMP2(&U3PhAbs, U3PhLdRef, 1.0, 1.0, 0.0, FALSE, FALSE);
+//
+//		MRef = U3PhAbs / XX_UIIn.XUFt_UDC;
+//		MRef = OvMd(MRef);
+//
+//		syntheta += PI2 * frq * CvCtrl.Duty[0];
+//
+//		//	/**/
+//		//	syntheta = PI2/3.0;
+//		//	MRef = Limit((os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 0.001,0.0,0.1);
+//		//	/**/
+//
+//		if (syntheta > PI2)
+//		{
+//			syntheta -= PI2;
+//		}
+//		else if (syntheta < 0.0)
+//		{
+//			syntheta += PI2;
+//		}
+//
+//		Udq = POL2CPLX(MRef, 0.0);
+//		Uab = CPLXMULT(Udq, POL2CPLX(1.0, syntheta)); //ipark
+//
+//		SVPWM(&CvCtrl.Duty[2], &CvCtrl.Duty[3], &CvCtrl.Duty[4], Uab);
+//
+//		CvCtrl.Duty[2] = Limit(CvCtrl.Duty[2], 0.06, 0.94);
+//		CvCtrl.Duty[3] = Limit(CvCtrl.Duty[3], 0.06, 0.94);
+//		CvCtrl.Duty[4] = Limit(CvCtrl.Duty[4], 0.06, 0.94);
+//
+//		CvCtrl.Duty[0] = 1.0 / 18.75e6 * ((Uint16) ((1.0 / 2700.0) * 18.75e6));
+//		CvCtrl.Duty[1] = 1.0 - CvCtrl.Duty[1];
+//	}
+//	else
+//	{
+//		CvCtrl.Duty[2] = 0.5;
+//		CvCtrl.Duty[3] = 0.5;
+//		CvCtrl.Duty[4] = 0.5;
+//
+//		CvCtrl.Duty[0] = 1.0 / 18.75e6 * ((Uint16) ((1.0 / 2700.0) * 18.75e6));
+//		CvCtrl.Duty[1] = 1.0 - CvCtrl.Duty[1];
+//	}
+//	//--------------------------------------
+//M_ClrFlag(SL_PreFlxSynFl);
+//	if(frq>45.0)
+//		M_SetFlag(SL_PreFlxSynOk);
+//	else
+//		M_ClrFlag(SL_PreFlxSynOk);
+//
+//	if(U3PhAbs<1.0)
+//		M_SetFlag(SL_TqXpZero);
+//	else
+//		M_ClrFlag(SL_TqXpZero);
+//}
+
+void CvControlM(void)
+{
+	float32 FrqRef;
+	float32 U3PhLdRef;
 
 	if (M_ChkFlag(SL_InvCtrl))
 	{
-		RAMP2(&frq, 50.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+		CvCtrl.Analog[0] = XX_UIIn.XIFt_IA;
+		CvCtrl.Analog[1] = XX_UIIn.XIFt_IB;
+		CvCtrl.Analog[2] = XX_UIIn.XUFt_UDC;
+		CvCtrl.Analog[3] = XX_SpdDrIn.XVFt_Spd1;
+		CvCtrl.CmdTq = hstida.CTq_TQ;
+		CvCtrl.SpDir = XX_SpdDrIn.SX_MotDir_Flt;
+
+		FrqRef = hstida.HMI_rsvd;
+		FrqRef = Limit(FrqRef,0,50.0);
+
+		if(NX_MCUCmd&mTqOutFn)
+			RAMP2(&frq, 0.0, 0.0005, 0.0005, 0.0, FALSE, FALSE);
+		else
+			RAMP2(&frq, FrqRef, 0.0005, 0.0005, 0.0, FALSE, FALSE);
+
+		U3PhLdRef = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, 380.0, 100.0, 380.0)
+									* SQRT2bySQRT3;
+		RAMP2(&U3PhAbs, U3PhLdRef, 0.5, 0.5, 0.0, FALSE, FALSE);
+
+		MRef = U3PhAbs / XX_UIIn.XUFt_UDC;
+		MRef = Limit(MRef,0,0.577);
+
+		syntheta += PI2 * frq * CvCtrl.Duty[0];
+
+		if (syntheta > PI2)
+		{
+			syntheta -= PI2;
+		}
+		else if (syntheta < 0.0)
+		{
+			syntheta += PI2;
+		}
+
+		Udq = POL2CPLX(MRef, 0.0);
+		Uab = CPLXMULT(Udq, POL2CPLX(1.0, syntheta)); //ipark
+
+		SVPWM(&CvCtrl.Duty[2], &CvCtrl.Duty[3], &CvCtrl.Duty[4], Uab);
+
+		CvCtrl.Duty[2] = Limit(CvCtrl.Duty[2], 0.06, 0.94);
+		CvCtrl.Duty[3] = Limit(CvCtrl.Duty[3], 0.06, 0.94);
+		CvCtrl.Duty[4] = Limit(CvCtrl.Duty[4], 0.06, 0.94);
+
+		CvCtrl.Duty[0] = 1.0 / 18.75e6 * ((Uint16) ((1.0 / 2700.0) * 18.75e6));
+		CvCtrl.Duty[1] = 1.0 - CvCtrl.Duty[1];
 	}
 	else
 	{
-		RAMP2(&frq, 0.0, 0.001, 0.001, 0.0, FALSE, FALSE);
+		CvCtrl.Duty[2] = 0.5;
+		CvCtrl.Duty[3] = 0.5;
+		CvCtrl.Duty[4] = 0.5;
+
+		CvCtrl.Duty[0] = 1.0 / 18.75e6 * ((Uint16) ((1.0 / 2700.0) * 18.75e6));
+		CvCtrl.Duty[1] = 1.0 - CvCtrl.Duty[1];
 	}
-
-	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
-	U3PhLdRef = Limit(U3PhLdRef, 0.0, 380.0);
-
-	//	U3PhAbs = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
-	//							* SQRT2bySQRT3 * 1.684;
-	U3PhLdRef = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, U3PhLdRef, 100.0, U3PhLdRef)
-							* SQRT2bySQRT3 * 1.684;
-	RAMP2(&U3PhAbs, U3PhLdRef, 1.0, 1.0, 0.0, FALSE, FALSE);
-
-	MRef = U3PhAbs / XX_UIIn.XUFt_UDC;
-	MRef = OvMd(MRef);
-
-	syntheta += PI2 * frq * CvCtrl.Duty[0];
-
-	//	/**/
-	//	syntheta = PI2/3.0;
-	//	MRef = Limit((os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 0.001,0.0,0.1);
-	//	/**/
-
-	if (syntheta > PI2)
-	{
-		syntheta -= PI2;
-	}
-	else if (syntheta < 0.0)
-	{
-		syntheta += PI2;
-	}
-
-	Udq = POL2CPLX(MRef, 0.0);
-	Uab = CPLXMULT(Udq, POL2CPLX(1.0, syntheta)); //ipark
-
-	SVPWM(&CvCtrl.Duty[2], &CvCtrl.Duty[3], &CvCtrl.Duty[4], Uab);
-
-	CvCtrl.Duty[2] = Limit(CvCtrl.Duty[2], 0.06, 0.94);
-	CvCtrl.Duty[3] = Limit(CvCtrl.Duty[3], 0.06, 0.94);
-	CvCtrl.Duty[4] = Limit(CvCtrl.Duty[4], 0.06, 0.94);
-
-	if (frq >= 45.0)
+	//--------------------------------------
+	if(frq>0.9*FrqRef)
 		M_SetFlag(SL_PreFlxSynOk);
+	else
+		M_ClrFlag(SL_PreFlxSynOk);
 
-	M_SetFlag(SL_TqXpZero);
-
-	CvCtrl.Duty[0] = 1.0 / 18.75e6 * ((Uint16) ((1.0 / 2700.0) * 18.75e6));
-	CvCtrl.Duty[1] = 1.0 - CvCtrl.Duty[1];
+	if(U3PhAbs<1.0)
+		M_SetFlag(SL_TqXpZero);
+	else
+		M_ClrFlag(SL_TqXpZero);
 }
 
 void chopper(void)
@@ -1176,6 +1338,7 @@ void chopper(void)
 		YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
 		YX_PwmOut.YX_Pwm4AVv = 0.5 * YX_PwmOut.YTm_Pwm4PdVv;
 
+		M_ClrFlag(SL_OvpTstFl);
 		M_SetFlag(SL_OvpTstOk);
 	}
 	else if (NX_DSPSt == DisChg)
@@ -1183,6 +1346,7 @@ void chopper(void)
 		YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
 		YX_PwmOut.YX_Pwm4AVv = 0.25 * YX_PwmOut.YTm_Pwm4PdVv;
 
+		M_ClrFlag(SL_DisChgFl);
 		M_SetFlag(SL_DisChgOk);
 	}
 	else
@@ -1279,6 +1443,14 @@ void protect(void)
 	}
 	else
 		XX_Pro.Cnt_SpdO = 0;
+
+	//---------------------------------------------------------
+	if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
+			|| (os.ERR_DSPHandle->ERR_DSP3.all))
+		M_InvBc();
+
+	if ((os.ERR_DSPHandle->ERR_DSP1.all))
+		M_ChpBc();
 }
 
 /*
@@ -1330,8 +1502,7 @@ void HSTPDA(void)
 void HSTIDA(void)
 {
 	//1ms
-	//	U3PhLdRef = (os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
-	//	hstida.CTq_TQ
+	hstida.HMI_rsvd = (os.CUST_MCU_1msHandle->MCUTxVar[0] & 0x00FF) ;
 
 	//2ms
 	//	(os.CUST_MCU_2msHandle->MCUTxVar[0] & 0x00FF) * 10.0;
@@ -1350,9 +1521,9 @@ void HSTODA(void)
 	//	Uint16 *ptr;
 	//
 	hstoda.BankCh1 = (Uint16) os.STA_OUTHandle->DSPSt;
-	hstoda.BankCh2 = (Uint16) os.ERR_DSPHandle->ERR_DSP2.all;
-	hstoda.BankCh3 = (Uint16) os.ERR_DSPHandle->ERR_DSP3.all;
-	hstoda.BankCh4 = (Uint16) os.PWM_OSHandle->YTm_PwmPdVv;
+	hstoda.BankCh2 = (Uint16) os.ERR_DSPHandle->ERR_DSP1.all;
+	hstoda.BankCh3 = (Uint16) os.ERR_DSPHandle->ERR_DSP2.all;
+	hstoda.BankCh4 = (Uint16) os.ERR_DSPHandle->ERR_DSP3.all;
 	hstoda.BankCh5 = (Uint16) os.PWM_OSHandle->YX_Pwm1AVv;
 	hstoda.BankCh6 = (Uint16) frq;
 	//		hstoda.BankCh4 = (Uint16)(AI[0]*10);
@@ -1360,6 +1531,9 @@ void HSTODA(void)
 	//		hstoda.BankCh4 = (Uint16)(XX_UIIn.XIFt_IA*100);
 	//		hstoda.BankCh5 = (Uint16)(fabs(XX_UIIn.XIFt_IA)*100);
 	//		hstoda.BankCh6 = (Uint16)(hstoda.XIFt_IA_Avg*100);
+//	hstoda.BankCh2 = (Uint16) (hstoda.XIFt_IA_Rms*10);
+//	hstoda.BankCh3 = (Uint16) (hstoda.XIFt_IB_Rms*10);
+//	hstoda.BankCh4 = (Uint16) (hstoda.XIFt_IC_Rms*10);
 	//---------------------------CUST_DSP_1ms[20]-------------------------------------------
 	//	ptr = (Uint16*)&hstoda;
 	//	for(i=0;i<10;i++)
@@ -1395,8 +1569,12 @@ void HSTODA(void)
 	os.CUST_DSP_16msHandle->DSPTxVar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>> 8;
 
 	//----------------------------CUST_DSP_64ms[40]------------------------------------------------------
-	os.CUST_DSP_64msHandle->DSPTxVar[0] = (os.STA_OUTHandle->DSPSt & 0x00ff);
-	os.CUST_DSP_64msHandle->DSPTxVar[1] = (os.STA_OUTHandle->DSPSt & 0xff00)>> 8;
+	os.CUST_DSP_64msHandle->DSPTxVar[0] = ((Uint16)(hstoda.XIFt_IA_Rms*10) & 0x00ff);
+	os.CUST_DSP_64msHandle->DSPTxVar[1] = ((Uint16)(hstoda.XIFt_IA_Rms*10) & 0xff00)>> 8;
+	os.CUST_DSP_64msHandle->DSPTxVar[2] = ((Uint16)(hstoda.XIFt_IB_Rms*10) & 0x00ff);
+	os.CUST_DSP_64msHandle->DSPTxVar[3] = ((Uint16)(hstoda.XIFt_IB_Rms*10) & 0xff00)>> 8;
+	os.CUST_DSP_64msHandle->DSPTxVar[4] = ((Uint16)(hstoda.XIFt_IC_Rms*10) & 0x00ff);
+	os.CUST_DSP_64msHandle->DSPTxVar[5] = ((Uint16)(hstoda.XIFt_IC_Rms*10) & 0xff00)>> 8;
 
 }
 
@@ -1422,5 +1600,9 @@ void OptoTest(void)
 		os.PWM_OSHandle->YX_Pwm2AVv = os.PWM_OSHandle->YTm_PwmPdVv * 0.3;
 		os.PWM_OSHandle->YX_Pwm3AVv = os.PWM_OSHandle->YTm_PwmPdVv * 0.4;
 	}
+
+	//-----------------------------------------------------------
+	os.PWM_OSHandle->YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);;
+	os.PWM_OSHandle->YX_Pwm4AVv = os.PWM_OSHandle->YTm_Pwm4PdVv *0.5;
 }
 
