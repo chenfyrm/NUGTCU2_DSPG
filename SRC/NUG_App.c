@@ -21,10 +21,10 @@
 #define	DSPIniFn			0x03		//系统初始化完成
 #define	OVPTst				0x04		//OVP测试状态
 #define	OVPTstFn			0x05		//OVP测试完成
-#define	PreFlx				0x06		//预励磁状态
-#define	PreFlxFn			0x07		//预励磁完成
-#define	TqOut				0x08		//转矩输出状态
-#define	TqOutFn			0x09		//转矩输出结束状态
+#define	PreFlxSyn			0x06		//预励磁/同步状态
+#define	PreFlxSynFn		0x07		//预励磁/同步完成
+#define	TqXpOut			0x08		//转矩/有功输出状态
+#define	TqXpOutFn		0x09		//转矩/有功率输出结束状态
 #define	DisChg				0x0A		//放电状态
 #define	DisChgFn			0x0B		//放电完成状态
 #define	FltStt				0x0C		//故障状态
@@ -62,15 +62,15 @@
 #define 	SL_DisChgFl						0x06
 #define	SL_TqXpZero						0x07
 #define 	SL_Run								0x08
-#define	SL_InvCtrl							0x09
+#define	SL_CvCtrl							0x09
 #define	SL_ChpCtrl						0x0A
 
 //flag[1]
 
 
 //===========================InvEn InvBc======================================
-#define	M_InvEn()			(os.DO_OSHandle->DO1.bit.L_InvEn = 1)
-#define  	M_InvBc()     		(os.DO_OSHandle->DO1.bit.L_InvEn = 0)
+#define	M_CvEn()			(os.DO_OSHandle->DO1.bit.L_InvEn = 1)
+#define  	M_CvBc()     		(os.DO_OSHandle->DO1.bit.L_InvEn = 0)
 
 //===========================ChpEn ChpBc=====================================
 #define 	M_ChpEn()		(os.DO_OSHandle->DO1.bit.L_ChpEn = 1)
@@ -81,6 +81,7 @@
 #define	M_ClrFlag(x)		(flag[(x & 0xF0)>>4] &=~ (((Uint16)0x0001)<<(x & 0x0F)))
 #define	M_NotFlag(x)	(flag[(x & 0xF0)>>4] ^= (((Uint16)0x0001)<<(x & 0x0F)))
 #define	M_ChkFlag(x)	(flag[(x & 0xF0)>>4] &(((Uint16)0x0001)<<(x & 0x0F)))
+#define	M_ChkCounter(x,y)	((int32)(x-y))
 
 // **************************************************************************
 // the typedefs
@@ -583,6 +584,22 @@ typedef struct _XX_Pro_Obj_
 	Uint16 Cnt_PH;
 	Uint16 Cnt_SpdO;
 } XX_Pro_Obj;
+
+typedef struct _Counter_Obj_
+{
+	Uint16 Cnt1;
+	Uint16 Cnt2;
+	Uint16 Cnt3;
+	Uint16 Cnt4;
+	Uint16 Cnt5;
+
+	Uint16 Cnt_ChpIni;
+	Uint16 Cnt_DspIni;
+	Uint16 Cnt_OvpTst;
+	Uint16 Cnt_PreFlxSyn;
+	Uint16 Cnt_DisChg;
+
+}Counter_Obj;
 // **************************************************************************
 // the globals
 
@@ -609,7 +626,7 @@ volatile float32 frq, syntheta, U3PhAbs, cvtheta, MRef;
 volatile cfloat32 Udq, Uab;
 
 volatile XX_Pro_Obj XX_Pro;
-
+volatile Counter_Obj Counter;
 // **************************************************************************
 // the function prototypes
 
@@ -628,6 +645,7 @@ void chopper(void);
 void HSTIDA(void);
 void HSTODA(void);
 
+void CntCtrl(void);
 //--------------------------
 void OptoTest(void);
 
@@ -654,6 +672,7 @@ void INIT_EV(void)
 	os.CUST_MCU_2msHandle = (CUST_MCU_2ms_Handle) &CUST_MCU_2ms[0];
 	os.CUST_MCU_16msHandle = (CUST_MCU_16ms_Handle) &CUST_MCU_16ms[0];
 	os.CUST_MCU_64msHandle = (CUST_MCU_64ms_Handle) &CUST_MCU_64ms[0];
+
 	os.CUST_DSP_1msHandle = (CUST_DSP_1ms_Handle) &CUST_DSP_1ms[0];
 	os.CUST_DSP_2msHandle = (CUST_DSP_2ms_Handle) &CUST_DSP_2ms[0];
 	os.CUST_DSP_16msHandle = (CUST_DSP_16ms_Handle) &CUST_DSP_16ms[0];
@@ -668,7 +687,7 @@ void Cycle_OS(void)
 		InitApp();
 	}
 
-	if (0 == (Cnt_RTOS % 5))
+	if (1 == (Cnt_RTOS % 5))
 	{
 		HSTIDA();
 		HSTODA();
@@ -690,6 +709,10 @@ void INT_RTOS(void)
 
 	state_machine();
 
+	if (0 == (Cnt_RTOS % 5))
+		CntCtrl();
+
+
 //	if (NX_DSPSt >= DSPIniFn){
 //		M_ChpEn();
 //
@@ -710,24 +733,24 @@ void INT_PWM(void)
 {
 	if (NX_DSPSt == DSPOptoTst)
 	{
-		M_InvEn();
+		M_CvEn();
 		M_ChpEn();
 		OptoTest();
 	}
 	else if (NX_DSPSt >= DSPIniFn)
 	{
 		//---------------------------------------
-		if (((NX_DSPSt == PreFlx) || (NX_DSPSt == PreFlxFn)
-				|| (NX_DSPSt == TqOut)) && os.DI_OSHandle->DI1.bit.L_OptoFb)
-			M_InvEn();
+		if (((NX_DSPSt == PreFlxSyn) || (NX_DSPSt == PreFlxSynFn)
+				|| (NX_DSPSt == TqXpOut)) && os.DI_OSHandle->DI1.bit.L_OptoFb)
+			M_CvEn();
 		else
-			M_InvBc();
+			M_CvBc();
 
 		if ((os.DI_OSHandle->DI1.bit.L_OptoFb)
 				&& (os.DI_OSHandle->DI1.bit.L_InvFb))
-			M_SetFlag(SL_InvCtrl);
+			M_SetFlag(SL_CvCtrl);
 		else
-			M_ClrFlag(SL_InvCtrl);
+			M_ClrFlag(SL_CvCtrl);
 
 		sample_input();
 		protect();
@@ -747,8 +770,8 @@ void INT_PWM(void)
 	}
 	else
 	{
-		M_InvBc();
-		M_ClrFlag(SL_InvCtrl);
+		M_CvBc();
+		M_ClrFlag(SL_CvCtrl);
 		M_ChpBc();
 		M_ClrFlag(SL_ChpCtrl);
 	}
@@ -756,17 +779,18 @@ void INT_PWM(void)
 
 void state_machine(void)
 {
+	//-----------------进入测试态------------
 	if (os.STA_INHandle->NX_MCUSt == 0x301)
 		NX_DSPSt = DSPOptoTst;
 
-	//operating state
+	//---------------operating state---------------------
 	if (NX_DSPSt == ChpIni)
 	{
-		;
+		;//底层完成与MCU的一次性参数交互后返回0x01
 	}
 	else if (NX_DSPSt == ChpIniFn)
 	{
-		if (NX_MCUCmd & MCUHwIniFn)					//MCU硬件初始化完成
+		if (NX_MCUCmd & MCUHwIniFn)					//MCU返回硬件初始化完成标志
 			NX_DSPSt = DSPIni;
 	}
 	else if (NX_DSPSt == DSPIni)
@@ -783,7 +807,7 @@ void state_machine(void)
 		{
 			NX_DSPSt = DisChg;	//放电状态
 		}
-		else if(NX_MCUCmd&CvReSt)
+		else if(NX_MCUCmd&CvReSt)//重启变流器
 		{
 			NX_DSPSt=ChpIni;
 		}
@@ -817,10 +841,10 @@ void state_machine(void)
 		}
 		else if(NX_MCUCmd&PrEtEn)	//收到MCU预励磁请求
 		{
-			NX_DSPSt=PreFlx;		//预励磁状态
+			NX_DSPSt=PreFlxSyn;		//预励磁状态
 		}
 	}
-	else if(NX_DSPSt==PreFlx) //预励磁状态
+	else if(NX_DSPSt==PreFlxSyn) //预励磁状态
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
@@ -830,13 +854,13 @@ void state_machine(void)
 		{
 			if(M_ChkFlag(SL_TqXpZero))
 			{
-				NX_DSPSt=TqOutFn;
+				NX_DSPSt=TqXpOutFn;
 				M_ClrFlag(SL_TqXpZero);
 			}
 		}
 		else if(M_ChkFlag(SL_PreFlxSynOk))   	// time counter done in MATLAB
 		{
-			NX_DSPSt = PreFlxFn;	//预励磁完成
+			NX_DSPSt = PreFlxSynFn;	//预励磁完成
 			M_ClrFlag(SL_PreFlxSynOk);
 		}
 		else if(M_ChkFlag(SL_PreFlxSynFl))
@@ -845,7 +869,7 @@ void state_machine(void)
 			M_ClrFlag(SL_PreFlxSynFl);
 		}
 	}
-	else if(NX_DSPSt==PreFlxFn)					//预励磁完成 系统运行
+	else if(NX_DSPSt==PreFlxSynFn)					//预励磁完成 系统运行
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
@@ -855,16 +879,16 @@ void state_machine(void)
 		{
 			if(M_ChkFlag(SL_TqXpZero))
 			{
-				NX_DSPSt=TqOutFn;
+				NX_DSPSt=TqXpOutFn;
 				M_ClrFlag(SL_TqXpZero);
 			}
 		}
 		else if(NX_MCUCmd&TqOutEn)   	// time counter done in MATLAB
 		{
-			NX_DSPSt = TqOut;	//
+			NX_DSPSt = TqXpOut;	//
 		}
 	}
-	else if(NX_DSPSt==TqOut)					//转矩输出
+	else if(NX_DSPSt==TqXpOut)					//转矩输出
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
@@ -874,12 +898,12 @@ void state_machine(void)
 		{
 			if(M_ChkFlag(SL_TqXpZero))
 			{
-				NX_DSPSt=TqOutFn;
+				NX_DSPSt=TqXpOutFn;
 				M_ClrFlag(SL_TqXpZero);
 			}
 		}
 	}
-	else if(NX_DSPSt==TqOutFn)		//转矩输出结束
+	else if(NX_DSPSt==TqXpOutFn)		//转矩输出结束
 	{
 		if((NX_MCUCmd&CtOp)||(NX_MCUCmd&CtOpHL))	//收到MCU放电请求，接触器断开了
 		{
@@ -895,7 +919,7 @@ void state_machine(void)
 		}
 		else if(NX_MCUCmd&PrEtEn)
 		{
-			NX_DSPSt=PreFlx;
+			NX_DSPSt=PreFlxSyn;
 		}
 	}
 	else if(NX_DSPSt==DisChg)	//放电
@@ -931,7 +955,7 @@ void state_machine(void)
 		}
 		else if((NX_MCUCmd&mTqOutFn)&&(os.ERR_DSPHandle->ERR_DSP2.bit.L_DisChg == 0))
 		{
-			NX_DSPSt=TqOutFn;
+			NX_DSPSt=TqXpOutFn;
 		}
 		else if(NX_MCUCmd&CvReSt)
 		{
@@ -1263,7 +1287,7 @@ void CvControlM(void)
 	float32 FrqRef;
 	float32 U3PhLdRef;
 
-	if (M_ChkFlag(SL_InvCtrl))
+	if (M_ChkFlag(SL_CvCtrl))
 	{
 		CvCtrl.Analog[0] = XX_UIIn.XIFt_IA;
 		CvCtrl.Analog[1] = XX_UIIn.XIFt_IB;
@@ -1333,38 +1357,62 @@ void CvControlM(void)
 
 void chopper(void)
 {
-	if (NX_DSPSt == OVPTst)
+	if(M_ChkFlag(SL_ChpCtrl))
 	{
-		YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
-		YX_PwmOut.YX_Pwm4AVv = 0.5 * YX_PwmOut.YTm_Pwm4PdVv;
+		if (NX_DSPSt == OVPTst)
+		{
+			YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
+			YX_PwmOut.YX_Pwm4AVv = 0.5 * YX_PwmOut.YTm_Pwm4PdVv;
 
-		M_ClrFlag(SL_OvpTstFl);
-		M_SetFlag(SL_OvpTstOk);
-	}
-	else if (NX_DSPSt == DisChg)
-	{
-		YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
-		YX_PwmOut.YX_Pwm4AVv = 0.25 * YX_PwmOut.YTm_Pwm4PdVv;
+			if(TRUE)
+			{
+				M_SetFlag(SL_OvpTstOk);
+				Counter.Cnt_OvpTst = 0;
+			}
+			else
+			{
+				if(M_ChkCounter(Counter.Cnt_OvpTst,100)>0)
+					M_SetFlag(SL_OvpTstFl);
+			}
+		}
+		else if (NX_DSPSt == DisChg)
+		{
+			YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
+			YX_PwmOut.YX_Pwm4AVv = 0.25 * YX_PwmOut.YTm_Pwm4PdVv;
 
-		M_ClrFlag(SL_DisChgFl);
-		M_SetFlag(SL_DisChgOk);
+			if(TRUE)
+			{
+				M_SetFlag(SL_DisChgOk);
+				Counter.Cnt_DisChg = 0;
+			}
+			else
+			{
+				if(M_ChkCounter(Counter.Cnt_DisChg,500)>0)
+					M_SetFlag(SL_DisChgFl);
+			}
+		}
+		else
+		{
+			if (XX_UIIn.XUFt_UDC > 1900)
+			{
+				YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
+				YX_PwmOut.YX_Pwm4AVv = 0.75 * YX_PwmOut.YTm_Pwm4PdVv;
+			}
+			else if (XX_UIIn.XUFt_UDC < 1700)
+			{
+				YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
+				YX_PwmOut.YX_Pwm4AVv = 0;
+			}
+		}
+
+		os.PWM_OSHandle->YTm_Pwm4PdVv = YX_PwmOut.YTm_Pwm4PdVv;
+		os.PWM_OSHandle->YX_Pwm4AVv = YX_PwmOut.YX_Pwm4AVv;
 	}
 	else
 	{
-		if (XX_UIIn.XUFt_UDC > 1900)
-		{
-			YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
-			YX_PwmOut.YX_Pwm4AVv = 0.75 * YX_PwmOut.YTm_Pwm4PdVv;
-		}
-		else if (XX_UIIn.XUFt_UDC < 1700)
-		{
-			YX_PwmOut.YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);
-			YX_PwmOut.YX_Pwm4AVv = 0;
-		}
+		os.PWM_OSHandle->YTm_Pwm4PdVv = 0.00025 * (150.0e6 / 8.0);//
+		os.PWM_OSHandle->YX_Pwm4AVv = 0;
 	}
-
-	os.PWM_OSHandle->YTm_Pwm4PdVv = YX_PwmOut.YTm_Pwm4PdVv;
-	os.PWM_OSHandle->YX_Pwm4AVv = YX_PwmOut.YX_Pwm4AVv;
 }
 
 void protect(void)
@@ -1447,45 +1495,14 @@ void protect(void)
 	//---------------------------------------------------------
 	if ((os.ERR_DSPHandle->ERR_DSP1.all) || (os.ERR_DSPHandle->ERR_DSP2.all)
 			|| (os.ERR_DSPHandle->ERR_DSP3.all))
-		M_InvBc();
+		M_CvBc();
 
 	if ((os.ERR_DSPHandle->ERR_DSP1.all))
 		M_ChpBc();
 }
 
 /*
- * 	Uint16 NX_MtNo;
- float32 PUi_Np;
- float32 PFt_Lm;
- float32 PFt_Ls;
- float32 PFt_Lr;
-
- float32 PFt_Rs;
- float32 PFt_Rr;
- float32 PFt_Id_Nom;
- float32 PFt_IMot_Max;
- float32 PFt_FMot_Nom;
-
- float32 PFt_UDclk_Nom;
- float32 PFt_IDclk_Nom;
- float32 PFt_IAC_Nom;
- float32 NX_SpdOrTq;	//电机控制模式
- float32 WX_CpDrt;	//斩波占空比
-
- float32 PR_BrRs;
- float32 PTm_BrRsDp;
- float32 PK_BrRs;
- float32 PX_BrRsTpCft;
- float32 PR_DcNd;
-
- float32 PTm_DcNdDp;
- float32 PK_DcNd;
- float32 PX_DcNdTpCft;
- float32 PX_SpdLoKp;
- float32 PX_SpdLoKi;
-
- float32 PX_DclkFlt1;
- float32 PX_DclkFlt2;
+ *
  */
 void HSTPDA(void)
 {
@@ -1534,6 +1551,9 @@ void HSTODA(void)
 //	hstoda.BankCh2 = (Uint16) (hstoda.XIFt_IA_Rms*10);
 //	hstoda.BankCh3 = (Uint16) (hstoda.XIFt_IB_Rms*10);
 //	hstoda.BankCh4 = (Uint16) (hstoda.XIFt_IC_Rms*10);
+		hstoda.BankCh2 = (Uint16) (os.AIHandle->XVFt_Spd1);
+		hstoda.BankCh3 = (Uint16) (os.AIHandle->XVFt_Spd2);
+		hstoda.BankCh4 = (Uint16) (os.AIHandle->NX_SpDir);
 	//---------------------------CUST_DSP_1ms[20]-------------------------------------------
 	//	ptr = (Uint16*)&hstoda;
 	//	for(i=0;i<10;i++)
@@ -1578,6 +1598,22 @@ void HSTODA(void)
 
 }
 
+void CntCtrl(void)
+{
+	if(Counter.Cnt_ChpIni!=65535)Counter.Cnt_ChpIni++;
+	if(Counter.Cnt_DspIni!=65535)Counter.Cnt_DspIni++;
+	if(Counter.Cnt_OvpTst!=65535)Counter.Cnt_OvpTst++;
+	if(Counter.Cnt_PreFlxSyn!=65535)Counter.Cnt_PreFlxSyn++;
+	if(Counter.Cnt_DisChg!=65535)Counter.Cnt_DisChg++;
+}
+
+/*********************************************************
+ * 测试态下，测试PWM脉冲死区
+ *
+ *
+ *
+ *
+ * ******************************************************/
 void OptoTest(void)
 {
 	if (21 == os.PWM_OSHandle->YX_PwmMo)
