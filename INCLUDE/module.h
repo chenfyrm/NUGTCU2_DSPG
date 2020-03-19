@@ -62,18 +62,26 @@ extern "C" {
 #endif
 
 extern void Delay(volatile float32 *Dy, float32 Src);
+
 extern void LowPass(volatile float32 *Flt, float32 Src, float32 TsPerT1);
+
 extern void RmsClc(volatile float32 *rms, float32 Src, Uint16 N,
 		volatile float32 *Square, volatile Uint16 *cnt);
+
 extern void RAMP2(volatile float32 *Y, float32 X, float32 Dr, float32 Df,
 		float32 Init, Uint16 Set, Uint16 Hold);
+
 extern void RAMP(volatile float32 *Y, float32 X, float32 Tr, float32 Tf,
 		float32 Init, Uint16 Set, Uint16 Hold, float32 Max);
+
 extern float32 Cycle(void);
+
 extern void INTEGR(volatile float32 *Y, float32 X, float32 T, float32 Init,
 		float32 Max, float32 Min, Uint16 Set, Uint16 Hold);
+
 extern float32 FKG4(float32 X, float32 X1, float32 Y1, float32 X2, float32 Y2,
 		float32 X3, float32 Y3, float32 X4, float32 Y4);
+
 extern float32 PIREG();
 
 extern float32 Min(float32 a, float32 b);

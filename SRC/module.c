@@ -21,7 +21,7 @@
 
 // **************************************************************************
 // the functions
-/**/
+
 void LowPass(volatile float32 *Flt, float32 Src, float32 TsPerT1)
 {
 	*Flt = (*Flt + Src * TsPerT1) / (1.0 + TsPerT1);

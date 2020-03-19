@@ -69,8 +69,8 @@
 
 
 //===========================InvEn InvBc======================================
-#define	M_CvEn()			(os.DO_OSHandle->DO1.bit.L_InvEn = 1)
-#define  	M_CvBc()     		(os.DO_OSHandle->DO1.bit.L_InvEn = 0)
+#define	M_CvEn()			(os.DO_OSHandle->DO1.bit.L_CvEn = 1)
+#define  	M_CvBc()     		(os.DO_OSHandle->DO1.bit.L_CvEn = 0)
 
 //===========================ChpEn ChpBc=====================================
 #define 	M_ChpEn()		(os.DO_OSHandle->DO1.bit.L_ChpEn = 1)
@@ -134,7 +134,7 @@ struct DI1_BITS
 	Uint16 L_OptoFb :1;				//Opto使能反馈
 	Uint16 L_PwmHwErr:1;			//PWM驱动板故障
 	Uint16 L_SysHwErr:1;				//系统硬件保护
-	Uint16 L_InvFb :1;					//逆变使能反馈
+	Uint16 L_CvFb :1;					//逆变使能反馈
 	Uint16 L_ChpFb:1;					//斩波使能反馈
 	Uint16 rsvd :9;
 };
@@ -267,6 +267,7 @@ typedef struct _ERR_DSP_Obj_
 	union ERR_DSP3_REG ERR_DSP3;		//信号类
 	Uint16 rsvd3;
 	Uint16 rsvd4;
+	Uint16 rsvd5;
 } ERR_DSP_Obj, *ERR_DSP_Handle;
 
 //---------------------------------ERR_EXTR---------------------------------
@@ -322,7 +323,7 @@ typedef struct _PWM_OS_Obj_
 //---------------------------------DO_OS---------------------------------
 struct DO1_BITS
 {
-	Uint16 L_InvEn :1;					//光纤逆变使能指令
+	Uint16 L_CvEn :1;					//光纤逆变使能指令
 	Uint16 L_ChpEn:1;					//光纤斩波使能指令
 	Uint16 rsvd :14;
 };
@@ -747,7 +748,7 @@ void INT_PWM(void)
 			M_CvBc();
 
 		if ((os.DI_OSHandle->DI1.bit.L_OptoFb)
-				&& (os.DI_OSHandle->DI1.bit.L_InvFb))
+				&& (os.DI_OSHandle->DI1.bit.L_CvFb))
 			M_SetFlag(SL_CvCtrl);
 		else
 			M_ClrFlag(SL_CvCtrl);
@@ -1304,14 +1305,15 @@ void CvControlM(void)
 		else
 			RAMP2(&frq, FrqRef, 0.0005, 0.0005, 0.0, FALSE, FALSE);
 
-		U3PhLdRef = FKG4(frq, 0.0, 0.0, 6.0, 0.0, 50.0, 380.0, 100.0, 380.0)
+		U3PhLdRef = FKG4(frq, 0.0, 0.0, 3.0, 30.0, 50.0, 380.0, 100.0, 380.0)
 									* SQRT2bySQRT3;
 		RAMP2(&U3PhAbs, U3PhLdRef, 0.5, 0.5, 0.0, FALSE, FALSE);
 
 		MRef = U3PhAbs / XX_UIIn.XUFt_UDC;
 		MRef = Limit(MRef,0,0.577);
 
-		syntheta += PI2 * frq * CvCtrl.Duty[0];
+//		syntheta += PI2 * frq * CvCtrl.Duty[0];
+		syntheta -= PI2 * frq * CvCtrl.Duty[0];
 
 		if (syntheta > PI2)
 		{

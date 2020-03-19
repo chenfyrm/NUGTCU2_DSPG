@@ -638,7 +638,7 @@ void SP_PRO(void)
 			Cnt_Dir01F=1;
 		}
 	}
-//High and low speed, more than 375RPM,less than 15RPM
+//High and low speed, more than 3750RPM,less than 15RPM
 	if(EQep1Regs.QFLG.bit.UTO==1)                  // 5ms interrupt
 	{
 		// Differentiator	
